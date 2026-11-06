@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>商品 Listing 工作台</title>
+  <style>
+    :root {
+      --ink: #1c1915;
+      --muted: #5e584f;
+      --line: #e4dccf;
+      --paper: #f6f1e8;
+      --card: #fffdf8;
+      --green: #0f6e56;
+      --green-dark: #0b5342;
+      --warn: #8a5a12;
+      --warn-bg: #fff4df;
+      --bad: #8d2f2f;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--ink);
+      background: var(--paper);
+    }
+    header {
+      padding: 28px 7vw 10px;
+    }
+    h1 { margin: 0 0 8px; font-size: 28px; }
+    header p { margin: 0; color: var(--muted); max-width: 760px; line-height: 1.6; }
+    main {
+      display: grid;
+      grid-template-columns: minmax(280px, 380px) 1fr;
+      gap: 18px;
+      padding: 18px 7vw 40px;
+    }
+    section {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 18px;
+    }
+    label { display: block; font-size: 14px; margin: 12px 0 6px; }
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font: inherit;
+      background: #fff;
+    }
+    textarea { min-height: 96px; resize: vertical; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+    [hidden] { display: none !important; }
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 10px 16px;
+      font: inherit;
+      cursor: pointer;
+      background: #efe8dc;
+    }
+    button.primary { background: var(--green); color: white; }
+    button.primary:hover { background: var(--green-dark); }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    .check { display: flex; gap: 8px; align-items: center; margin-top: 12px; font-size: 14px; }
+    .check input { width: auto; }
+    #status {
+      margin-top: 14px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: #f3eee4;
+      line-height: 1.5;
+    }
+    #status.warn { background: var(--warn-bg); color: var(--warn); }
+    #status.bad { background: #fdecec; color: var(--bad); }
+    ol { margin: 0; padding-left: 18px; }
+    li { margin: 8px 0; line-height: 1.5; }
+    .draft h2, .side h2 { margin: 0 0 8px; font-size: 18px; }
+    .evidence { color: var(--muted); font-size: 14px; }
+    .evidence article { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 8px; }
+    .meta { color: var(--muted); font-size: 13px; line-height: 1.6; }
+    @media (max-width: 860px) {
+      main { grid-template-columns: 1fr; padding: 12px; }
+      header { padding: 20px 12px 0; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>商品 Listing 工作台</h1>
+    <p>这里根据自编商品资料写亚马逊要点。系统先找证据，再给你看草稿。你点确认后才会写入。原来的手册导入和问答还在 8000、8001。</p>
+  </header>
+  <main>
+    <section>
+      <label for="userId">你的名字</label>
+      <input id="userId" value="小明" />
+      <label for="role">身份</label>
+      <select id="role">
+        <option value="editor">编辑（可以确认写入）</option>
+        <option value="viewer">查看（只能看，不能写入）</option>
+      </select>
+      <label for="query">要做什么</label>
+      <textarea id="query">掌柜示例耳机 X1 单次充电能听多久，写成亚马逊要点</textarea>
+      <label class="check"><input id="unknown" type="checkbox" /> 模拟写入没有返回结果</label>
+      <div class="row">
+        <button class="primary" id="startBtn">生成草稿</button>
+        <button id="sampleAmbiguous" type="button">试试型号没说清</button>
+      </div>
+      <div id="status">还没有开始。</div>
+    </section>
+    <section class="draft">
+      <h2>进行到哪一步</h2>
+      <ol id="steps"><li>等待开始</li></ol>
+      <h2>草稿</h2>
+      <label for="title">标题</label>
+      <input id="title" />
+      <label for="bullets">要点（一行一条）</label>
+      <textarea id="bullets"></textarea>
+      <p id="gaps" class="meta"></p>
+      <p id="rules" class="meta"></p>
+      <div class="row">
+        <button id="saveBtn" disabled>保存修改</button>
+        <button class="primary" id="confirmBtn" disabled>确认写入</button>
+        <button id="rejectBtn" disabled>拒绝</button>
+        <button id="cancelBtn" disabled>取消</button>
+      </div>
+      <div class="row" id="reconcileRow" hidden>
+        <button id="foundBtn">我核对过，已经写上了</button>
+        <button id="missingBtn">我核对过，没有写上</button>
+      </div>
+      <h2>依据</h2>
+      <div id="evidence" class="evidence">生成后会把用到的原句放在这里。</div>
+      <p id="receipt" class="meta"></p>
+      <p id="models" class="meta"></p>
+    </section>
+  </main>
+  <script>
+    const statusLabels = {
+      awaiting_confirmation: "草稿好了，等你确认",
+      written: "已经写入台账",
+      written_checked: "人工核对过，不再写第二遍",
+      rejected: "已拒绝，没有写入",
+      cancelled: "已取消",
+      ambiguous: "型号没说清",
+      insufficient: "证据不够，没有写草稿",
+      failed: "流程失败",
+      confirm_rejected: "没有写入",
+      write_unknown: "写入结果不明，请先核对",
+      running: "正在处理"
+    };
+    let task = null;
+    let sessionId = "";
+    let source = null;
+
+    const $ = (id) => document.getElementById(id);
+
+    function setStatus(text, kind) {
+      const box = $("status");
+      box.textContent = text;
+      box.className = kind || "";
+    }
+
+    function render(snapshot) {
+      task = snapshot;
+      sessionId = snapshot.session_id || sessionId;
+      const steps = $("steps");
+      steps.innerHTML = "";
+      (snapshot.events || []).forEach((event) => {
+        const item = document.createElement("li");
+        const data = event.data || {};
+        item.textContent = `${data.label || data.name || event.event}：${data.detail || ""}`;
+        steps.appendChild(item);
+      });
+      if (!steps.children.length) steps.innerHTML = "<li>还没有步骤</li>";
+
+      const draft = snapshot.draft || {};
+      $("title").value = draft.title || "";
+      $("bullets").value = (draft.bullets || []).join("\n");
+      $("gaps").textContent = (draft.gaps || []).join("；");
+      const validation = snapshot.validation;
+      $("rules").textContent = validation
+        ? (validation.ok ? "规则通过" : validation.errors.join("；"))
+        : "";
+      const evidence = $("evidence");
+      evidence.innerHTML = "";
+      (snapshot.evidence || []).forEach((row) => {
+        const article = document.createElement("article");
+        article.textContent = `${row.title}：${row.text}`;
+        evidence.appendChild(article);
+      });
+      if (!evidence.children.length) evidence.textContent = "这次没有列出证据。";
+      const retrieval = snapshot.retrieval;
+      const modelLine = retrieval
+        ? `这次检索：${retrieval.embedding}，融合 ${retrieval.strategy}，重排序 ${retrieval.reranker}。`
+        : "";
+      $("models").textContent = modelLine;
+      $("receipt").textContent = snapshot.receipt ? snapshot.receipt.message : "";
+      const waiting = snapshot.status === "awaiting_confirmation";
+      const canEdit = waiting && snapshot.role === "editor";
+      $("saveBtn").disabled = !canEdit;
+      $("confirmBtn").disabled = !(canEdit && validation && validation.ok);
+      $("rejectBtn").disabled = !canEdit;
+      $("cancelBtn").disabled = !canEdit;
+      $("reconcileRow").hidden = snapshot.status !== "write_unknown";
+      const kind = ["ambiguous", "insufficient", "failed", "confirm_rejected", "write_unknown"].includes(snapshot.status)
+        ? "warn" : "";
+      setStatus(statusLabels[snapshot.status] || snapshot.status, snapshot.clarify_question ? "warn" : kind);
+      if (snapshot.clarify_question) setStatus(snapshot.clarify_question, "warn");
+    }
+
+    async function post(url, body) {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || "请求失败");
+      return data;
+    }
+
+    function listen(taskId) {
+      if (source) source.close();
+      source = new EventSource(`/api/listing/stream/${taskId}`);
+      source.addEventListener("end", () => source.close());
+      source.onerror = () => source.close();
+      ["node", "tool", "draft", "final", "error"].forEach((name) => {
+        source.addEventListener(name, async () => {
+          const latest = await fetch(`/api/listing/tasks/${taskId}`).then((item) => item.json());
+          render(latest);
+        });
+      });
+    }
+
+    $("startBtn").onclick = async () => {
+      $("startBtn").disabled = true;
+      setStatus("正在检索和写草稿…");
+      try {
+        const snapshot = await post("/api/listing/tasks", {
+          query: $("query").value,
+          user_id: $("userId").value,
+          role: $("role").value,
+          session_id: sessionId || null,
+          rerank_mode: "on",
+          inject_write_unknown: $("unknown").checked,
+          idempotency_key: crypto.randomUUID()
+        });
+        render(snapshot);
+        listen(snapshot.task_id);
+      } catch (error) {
+        setStatus(error.message, "bad");
+      } finally {
+        $("startBtn").disabled = false;
+      }
+    };
+
+    $("sampleAmbiguous").onclick = () => {
+      $("query").value = "掌柜示例耳机能听多久";
+    };
+
+    $("saveBtn").onclick = async () => {
+      const snapshot = await post(`/api/listing/tasks/${task.task_id}/draft`, {
+        user_id: $("userId").value,
+        role: $("role").value,
+        base_version: task.draft_version,
+        title: $("title").value,
+        bullets: $("bullets").value.split("\n")
+      });
+      render(snapshot);
+    };
+
+    $("confirmBtn").onclick = async () => {
+      try {
+        const snapshot = await post(`/api/listing/tasks/${task.task_id}/confirm`, {
+          user_id: $("userId").value,
+          role: $("role").value,
+          draft_version: task.draft_version
+        });
+        render(snapshot);
+      } catch (error) {
+        setStatus(error.message, "bad");
+      }
+    };
+
+    $("rejectBtn").onclick = async () => {
+      const snapshot = await post(`/api/listing/tasks/${task.task_id}/reject`, {
+        user_id: $("userId").value,
+        role: $("role").value,
+        reason: "页面上拒绝"
+      });
+      render(snapshot);
+    };
+
+    $("cancelBtn").onclick = async () => {
+      const snapshot = await post(`/api/listing/tasks/${task.task_id}/cancel`, {
+        user_id: $("userId").value,
+        role: $("role").value
+      });
+      render(snapshot);
+    };
+
+    async function reconcile(found) {
+      const snapshot = await post(`/api/listing/tasks/${task.task_id}/reconcile`, {
+        user_id: $("userId").value,
+        role: $("role").value,
+        found
+      });
+      render(snapshot);
+    }
+    $("foundBtn").onclick = () => reconcile(true);
+    $("missingBtn").onclick = () => reconcile(false);
+
+    fetch("/api/listing/meta").then((response) => response.json()).then((card) => {
+      $("models").textContent = `默认草稿器 ${card.draft_generator}，向量 ${card.embedding}，重排序 ${card.reranker}。`;
+    });
+  </script>
+</body>
+</html>

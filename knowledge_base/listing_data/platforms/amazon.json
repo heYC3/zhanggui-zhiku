@@ -1,0 +1,9 @@
+{
+  "platform": "amazon",
+  "display_name": "亚马逊商品要点（演示规则，不是平台现行全文）",
+  "title_max_chars": 80,
+  "bullet_min": 1,
+  "bullet_max": 5,
+  "forbidden_substrings": ["最", "第一", "100%", "全网"],
+  "required_fields": ["title", "brand", "model", "bullets"]
+}

@@ -1,0 +1,20 @@
+{
+  "sku": "zg-power-p20",
+  "brand": "掌柜示例",
+  "model": "P20",
+  "family": "掌柜示例移动电源",
+  "unique_aliases": ["掌柜示例移动电源 P20", "移动电源 P20", "P20"],
+  "shared_aliases": ["掌柜示例移动电源", "掌柜示例"],
+  "chunks": [
+    {
+      "id": "zg-power-p20-capacity",
+      "title": "容量",
+      "text": "电芯容量 20000 毫安时，标注容量以电芯为准。"
+    },
+    {
+      "id": "zg-power-p20-output",
+      "title": "输出",
+      "text": "单口输出 65 瓦，可以给笔记本充电。"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+.env
+**/.env
+output
+logs
+temp-files
+models
+listing_data/runtime
+**/__pycache__
+**/.venv

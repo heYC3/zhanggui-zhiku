@@ -1,0 +1,30 @@
+{
+  "sku": "zg-ear-x1",
+  "brand": "掌柜示例",
+  "model": "X1",
+  "family": "掌柜示例耳机",
+  "unique_aliases": ["掌柜示例耳机 X1", "掌柜示例耳机X1", "X1"],
+  "shared_aliases": ["掌柜示例耳机", "掌柜示例"],
+  "chunks": [
+    {
+      "id": "zg-ear-x1-play",
+      "title": "播放时间",
+      "text": "音乐可以连续播放 30 小时，只统计听歌，不含通话。"
+    },
+    {
+      "id": "zg-ear-x1-link",
+      "title": "连接",
+      "text": "蓝牙版本是 5.3，打开盒盖就能和手机配对。"
+    },
+    {
+      "id": "zg-ear-x1-weight",
+      "title": "重量和颜色",
+      "text": "单耳重量 4.8 克，颜色有黑色和白色。"
+    },
+    {
+      "id": "zg-ear-x1-charge",
+      "title": "充电",
+      "text": "耳机从没电到充满大约需要 40 分钟。"
+    }
+  ]
+}
