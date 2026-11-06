@@ -1,10 +1,12 @@
-# 掌柜智库
+# 货知（Huozhi）
+
+仓库目录名 `zhanggui-zhiku` 按历史保留，项目现称「货知」。
 
 [![listing-agent](https://github.com/heYC3/zhanggui-zhiku/actions/workflows/listing-ci.yml/badge.svg)](https://github.com/heYC3/zhanggui-zhiku/actions/workflows/listing-ci.yml)
 
-独立开发的电商产品知识 RAG，外加一个 Listing 工作台。手册导入、问答和 Listing 都是自己实现并跑通的：把产品说明书放进去，再用口语提问；Listing 按资料原句写标题和要点，确认之后才写入。
+独立开发的电商产品知识双出口：手册 RAG 问答 + Listing 工作台；共享证据、令牌鉴权、人工确认、冻结评测；支持离线原句与可控真实模型草稿，含 SQLite 恢复与官方 MCP 客户端记录。
 
-实现时参考过开源组件和教学材料，用的是 LangGraph。Listing 的冻结测集、任务完成率和人机确认是个人新增。
+实现时参考开源组件与公开资料，用的是 LangGraph。Listing 的冻结测集、任务完成率和人机确认是个人新增。
 
 ## 目录
 
@@ -27,21 +29,43 @@ knowledge_base/
 
 ## 快速开始
 
-两条路分开。只想看 Listing，走第一条，不需要虚拟机、向量库和模型密钥。
+两条路分开。只想看 Listing，走第一条，不需要向量库和模型密钥。卷持久由 GitHub Actions 的 volume 任务验证，本机可选 Docker。
 
 ### 只跑 Listing
 
+页面默认账号是「小明」，密码是 `demo-pass`。这只给本地演示用，公开后请改掉。启动前设置：
+
+`LISTING_ACCOUNTS=小明:demo-pass:editor:org-demo`
+
+同一行写在 `knowledge_base/.env.example`。只跑 Listing 时，用下面的环境变量即可，不必先填模型密钥。不要把填好的 `.env` 提交进仓库。
+
+PowerShell：
+
 ```powershell
 cd knowledge_base
+$env:LISTING_ACCOUNTS = "小明:demo-pass:editor:org-demo"
 pip install -r requirements-listing.txt
 python -m app.listing_agent.eval
 python -m unittest discover -s test/listing -v
 python -m app.listing_agent
 ```
 
-评测会重算冻结测集，并对照 `listing_data/reports/baseline.md`。页面在 <http://127.0.0.1:8002/listing.html>。
+bash / Linux（可选，和上面等价）：
 
-GitHub Actions 跑同样的单元测试和 `python -m app.listing_agent.eval`。基线表和仓库里的 `baseline.md` 不一致时，流水线失败。另有一个任务会构建 Listing 镜像，用同一个数据卷启动两次，核对等待确认的任务还在，并且只写入一次。这台 Windows 上没有 Docker，容器结果要等那次流水线，不能把镜像文件在不在当成已经验证。
+```bash
+cd knowledge_base
+export LISTING_ACCOUNTS='小明:demo-pass:editor:org-demo'
+pip install -r requirements-listing.txt
+python -m app.listing_agent.eval
+python -m unittest discover -s test/listing -v
+python -m app.listing_agent
+```
+
+打开 <http://127.0.0.1:8002/listing.html>，用「小明」和 `demo-pass` 登录，再生成草稿。
+
+评测会重算冻结测集，并对照 `listing_data/reports/baseline.md`。
+
+GitHub Actions 跑同样的单元测试和 `python -m app.listing_agent.eval`。基线表和仓库里的 `baseline.md` 不一致时，流水线失败。卷持久由 GitHub Actions 的 volume 任务验证：构建 Listing 镜像，用同一个数据卷启动两次，核对等待确认的任务还在，并且只写入一次。本机可选 Docker。
 
 检查点默认写进 SQLite，进程被强制结束后还能接着确认。`LISTING_CHECKPOINT=file` 仍是单机演示用的文件快照，保存前被杀掉就续不上。故障、并发和推送断开的步骤与结果在 `knowledge_base/listing_data/reports/durability.md`。留出案例的分项对照在 `knowledge_base/listing_data/reports/ablation.md`。
 
@@ -49,9 +73,22 @@ GitHub Actions 跑同样的单元测试和 `python -m app.listing_agent.eval`。
 
 需要 Python 3.11、自己的模型密钥，以及 Milvus、MinIO、MongoDB。
 
+PowerShell：
+
 ```powershell
 cd knowledge_base
 copy .env.example .env
+docker compose -f deploy/docker-compose.yml up -d
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+pip install -r requirements-rag.txt
+python -m app.server
+```
+
+bash / Linux（可选，和上面等价）：
+
+```bash
+cd knowledge_base
+cp .env.example .env
 docker compose -f deploy/docker-compose.yml up -d
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 pip install -r requirements-rag.txt
@@ -78,7 +115,7 @@ PDF 手册要另备 MinerU 令牌。BGE-M3 在第一次向量化时按 `BGE_M3` 
 
 ## Acknowledgements
 
-参考过开源组件和教学材料，自己把导入、问答和 Listing 落地。厂商手册没有放进仓库。Listing 的商品、规则、评测题和确认流程是个人新增。许可是 [MIT](LICENSE)。
+参考开源组件与公开资料，自己把导入、问答和 Listing 落地。厂商手册没有放进仓库。Listing 的商品、规则、评测题和确认流程是个人新增。许可是 [MIT](LICENSE)。
 
 ## 两条能力
 
@@ -193,7 +230,7 @@ python -m app.listing_agent.llm_compare
 
 `LISTING_USE_BGE=1` 才会加载 BGE-M3，失败就退回离线字块。Langfuse 三项都填了，任务记录才会发到云端；不填只写 `listing_data/runtime/traces.jsonl`。
 
-Listing 容器在 `deploy/Dockerfile.listing`：
+Listing 容器在 `deploy/Dockerfile.listing`。卷持久由 GitHub Actions 的 volume 任务验证，本机可选 Docker：
 
 ```bash
 docker compose -f deploy/docker-compose.listing.yml up --build
@@ -217,6 +254,7 @@ docker compose -f deploy/docker-compose.listing.yml up --build
 | `MONGO_URL` | 问答聊天记录 |
 | `BGE_M3` / `BGE_M3_PATH` / `BGE_DEVICE` | 向量模型。`BGE_M3_PATH` 留空则按模型名下载 |
 | `TEXT_RERANK_MODEL` | 默认 `qwen3-rerank` |
+| `LISTING_ACCOUNTS` | 登录账号，格式 `用户:密码:角色:机构`。样例是「小明」/ `demo-pass`，只给本地演示，公开后请改掉 |
 | `LISTING_USE_BGE` | Listing 默认 `0`，不加载 BGE-M3 |
 | `LISTING_DRAFT_MODE` | `offline` 用原句模板；`llm` 才调用文本模型。页面上也可以切换 |
 | `LISTING_LLM_PROVIDER` | 默认 `bailian`。失败再换另一家，两家都失败用知识库原句 |
@@ -227,4 +265,4 @@ docker compose -f deploy/docker-compose.listing.yml up --build
 
 ## 许可
 
-采用 [MIT](LICENSE) 许可。
+采用 [MIT](LICENSE) 许可。参与方式见 [CONTRIBUTING.md](CONTRIBUTING.md)。安全问题见 [SECURITY.md](SECURITY.md)。

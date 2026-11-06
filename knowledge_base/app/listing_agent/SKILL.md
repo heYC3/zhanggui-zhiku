@@ -1,6 +1,6 @@
 ---
 name: listing-rule-check
-description: 检查或检索掌柜智库 Listing 草稿时使用。调用本项目的 MCP 工具，不直接改台账。
+description: 检查或检索货知 Listing 草稿时使用。调用本项目的 MCP 工具，不直接改台账。
 ---
 
 # Listing 规则检查

@@ -16,7 +16,7 @@ from app.listing_agent.paths import MODEL_CARD_PATH, runtime_dir
 from app.listing_agent.service import ListingError, ListingService
 
 
-app = FastAPI(title="掌柜智库 Listing", description="商品资料检索、草稿确认和写入")
+app = FastAPI(title="货知 Listing", description="商品资料检索、草稿确认和写入")
 _service: ListingService | None = None
 _auth: AuthStore | None = None
 

@@ -12,8 +12,10 @@ from langchain_core.messages import HumanMessage
 from app.lm.lm_utils import get_llm_client
 from app.conf.lm_config import lm_config
 
-# 用一张真实手册图片测试
-img = r"D:\研究生个人空间\Codex工作区\项目\掌柜智库\knowledge_base\output\20261005\a3c5f46f-26b9-4611-85fa-51885208f7cf\华为擎云L420 用户手册-(KelvinV,01,zh-cn)\images\0d067cf236e07a12c223adfaf1c18e759927771e63e0adb6c3401ae0057690b2.jpg"
+# 填本机图片路径后再运行，例如 REPRO_VLM_IMAGE=/path/to/page.jpg
+img = os.environ.get("REPRO_VLM_IMAGE", "")
+if not img:
+    raise SystemExit("请设置环境变量 REPRO_VLM_IMAGE 为本机图片路径")
 
 with open(img, "rb") as f:
     b64 = base64.b64encode(f.read()).decode()
