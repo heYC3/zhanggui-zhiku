@@ -5,6 +5,8 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -22,6 +24,30 @@ from app.listing_agent.workflow import build_graph
 
 
 logger = logging.getLogger("listing_agent.service")
+
+_NODE_LABELS = {
+    "resolve_product": "确认商品",
+    "retrieve_evidence": "资料检索",
+    "check_evidence": "证据核对",
+    "generate_draft": "草稿生成",
+    "validate_draft": "规则校验",
+    "wait_human": "等待确认",
+    "write_listing": "草稿写入",
+    "finish": "结束",
+}
+
+
+def _stream_detail(update) -> str:
+    if not isinstance(update, dict):
+        return ""
+    draft = update.get("draft") or {}
+    if isinstance(draft, dict) and (draft.get("fallback_note") or draft.get("policy")):
+        return draft.get("fallback_note") or draft.get("policy") or ""
+    if update.get("sku"):
+        return str(update.get("sku"))
+    if update.get("status"):
+        return str(update.get("status"))
+    return ""
 
 
 def _trace_usage(telemetry: dict) -> tuple[dict, str]:
@@ -85,6 +111,7 @@ class ListingService:
         if getattr(self, "_closed", False):
             return
         self.ledger.close()
+        self.checkpoints.close()
         self._closed = True
 
     def start(
@@ -191,6 +218,9 @@ class ListingService:
         if not validation.get("ok"):
             raise ListingError("规则没通过，不能写入")
         draft = _loads(row["draft_json"], {})
+        state_snapshot = self.graph.get_state({"configurable": {"thread_id": task_id}})
+        if not self._interrupt_list(state_snapshot):
+            raise ListingError("检查点里没有等待确认的步骤，不能写入")
         self._invoke(
             task_id,
             Command(
@@ -221,6 +251,16 @@ class ListingService:
         if row["status"] in {"written", "written_checked"}:
             raise ListingError("已经写入的草稿不能用取消来删除")
         self.ledger.update_task(task_id, cancelled=1)
+        self._add_event(
+            task_id,
+            "node",
+            {
+                "name": "cancel",
+                "label": "取消",
+                "phase": "request",
+                "detail": "取消已记下。断开页面推送不会走到这里。",
+            },
+        )
         if row["status"] == "awaiting_confirmation":
             self._invoke(
                 task_id,
@@ -347,8 +387,23 @@ class ListingService:
     def _invoke(self, task_id: str, graph_input) -> None:
         config = {"configurable": {"thread_id": task_id}}
         try:
-            for _chunk in self.graph.stream(graph_input, config, stream_mode="updates"):
-                pass
+            pause_node = os.getenv("LISTING_PAUSE_AFTER_NODE", "").strip()
+            pause_seconds = float(os.getenv("LISTING_PAUSE_SECONDS", "0") or 0)
+            for chunk in self.graph.stream(graph_input, config, stream_mode="updates"):
+                if isinstance(chunk, dict):
+                    for name, update in chunk.items():
+                        self._add_event(
+                            task_id,
+                            "node",
+                            {
+                                "name": name,
+                                "label": _NODE_LABELS.get(name, name),
+                                "phase": "end",
+                                "detail": _stream_detail(update),
+                            },
+                        )
+                        if pause_node and name == pause_node and pause_seconds > 0:
+                            time.sleep(pause_seconds)
             state_snapshot = self.graph.get_state(config)
             values = state_snapshot.values or {}
             interrupts = self._interrupt_list(state_snapshot)

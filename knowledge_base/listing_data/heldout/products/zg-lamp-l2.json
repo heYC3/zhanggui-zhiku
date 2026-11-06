@@ -1,0 +1,21 @@
+{
+  "sku": "zg-lamp-l2",
+  "brand": "掌柜留出",
+  "model": "L2",
+  "family": "掌柜留出台灯",
+  "version": "第一版",
+  "unique_aliases": ["掌柜留出台灯 L2 第一版", "掌柜留出台灯L2第一版"],
+  "shared_aliases": ["掌柜留出台灯 L2", "掌柜留出台灯"],
+  "chunks": [
+    {
+      "id": "zg-lamp-l2-bright",
+      "title": "亮度",
+      "text": "第一版台灯的亮度是 300 勒克斯。"
+    },
+    {
+      "id": "zg-lamp-l2-power",
+      "title": "供电",
+      "text": "电池容量写的是 2000 毫安时，另一行写的是 7.4 瓦时。"
+    }
+  ]
+}

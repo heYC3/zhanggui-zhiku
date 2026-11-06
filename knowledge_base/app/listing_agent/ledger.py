@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import threading
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -27,8 +28,17 @@ class Ledger:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.RLock()
-        self._conn = sqlite3.connect(self.path, check_same_thread=False)
+        self._conn = sqlite3.connect(self.path, check_same_thread=False, timeout=5)
         self._conn.row_factory = sqlite3.Row
+        for attempt in range(8):
+            try:
+                self._conn.execute("PRAGMA busy_timeout=5000")
+                self._conn.execute("PRAGMA journal_mode=WAL")
+                break
+            except sqlite3.OperationalError:
+                if attempt == 7:
+                    raise
+                time.sleep(0.25)
         self._setup()
 
     def _setup(self) -> None:

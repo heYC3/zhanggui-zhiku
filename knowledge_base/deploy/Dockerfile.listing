@@ -7,6 +7,7 @@ RUN pip install --no-cache-dir -r requirements-listing.txt
 
 COPY app/__init__.py app/__init__.py
 COPY app/listing_agent app/listing_agent
+COPY app/evidence app/evidence
 COPY listing_data listing_data
 
 ENV PYTHONPATH=/app

@@ -1,0 +1,16 @@
+{
+  "sku": "zg-strip-p1",
+  "brand": "掌柜留出",
+  "model": "P1",
+  "family": "掌柜留出插线板",
+  "version": "开发族",
+  "unique_aliases": ["掌柜留出插线板 P1"],
+  "shared_aliases": ["掌柜留出插线板"],
+  "chunks": [
+    {
+      "id": "zg-strip-p1-ports",
+      "title": "插孔",
+      "text": "这只插线板有 3 个插孔。"
+    }
+  ]
+}

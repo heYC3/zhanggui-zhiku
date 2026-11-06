@@ -23,3 +23,14 @@ jobs:
         run: |
           python -m app.listing_agent.eval
           git diff --exit-code -- listing_data/reports/baseline.md
+
+  volume:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the Listing image
+        run: docker build -f knowledge_base/deploy/Dockerfile.listing -t zhanggui-listing:ci knowledge_base
+      - name: First boot leaves a waiting task on the volume
+        run: docker run --rm --name listing-volume-a -v listing-ci:/data -e LISTING_RUNTIME_DIR=/data -e LISTING_CHECKPOINT=sqlite zhanggui-listing:ci python -m app.listing_agent.volume_check --phase one
+      - name: Second boot reads the same volume and writes once
+        run: docker run --rm --name listing-volume-b -v listing-ci:/data -e LISTING_RUNTIME_DIR=/data -e LISTING_CHECKPOINT=sqlite zhanggui-listing:ci python -m app.listing_agent.volume_check --phase two

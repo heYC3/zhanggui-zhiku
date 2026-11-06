@@ -198,19 +198,19 @@ async def reconcile_task(task_id: str, body: ReconcileBody, request: Request):
     return get_service().reconcile(task_id, actor.user_id, actor.role, body.found)
 
 
-@app.get("/api/listing/stream/{task_id}")
-async def stream_task(task_id: str, request: Request):
-    """把已经发生的步骤推给页面。未登录 401，别人的任务 404。"""
-    actor = actor_from_request(request)
-    service = get_service()
-    service.snapshot_for(task_id, actor.user_id)
+async def iter_listing_events(service: ListingService, task_id: str, user_id: str, disconnected):
+    """把已经落盘的步骤推出去。断开只结束这条推送，不取消任务。
 
-    async def generate():
-        cursor = 0
+    disconnected 是一个异步函数。页面用 request.is_disconnected。
+    测试传入自己的函数。Starlette 的 TestClient 在任务还等确认时
+    经常不送断开信号，while True 会一直睡，所以单测不走 TestClient.stream。
+    """
+    cursor = 0
+    try:
         while True:
-            if await request.is_disconnected():
-                break
-            snapshot = service.snapshot_for(task_id, actor.user_id)
+            if await disconnected():
+                return
+            snapshot = service.snapshot_for(task_id, user_id)
             for event in snapshot["events"]:
                 if event["id"] <= cursor:
                     continue
@@ -219,7 +219,23 @@ async def stream_task(task_id: str, request: Request):
                 yield f"event: {event['event']}\ndata: {payload}\n\n"
             if snapshot["status"] in _TERMINAL:
                 yield "event: end\ndata: {}\n\n"
-                break
-            await asyncio.sleep(0.3)
+                return
+            await asyncio.sleep(0.2)
+    except asyncio.CancelledError:
+        raise
+
+
+@app.get("/api/listing/stream/{task_id}")
+async def stream_task(task_id: str, request: Request):
+    """把已经发生的步骤推给页面。未登录 401，别人的任务 404。"""
+    actor = actor_from_request(request)
+    service = get_service()
+    service.snapshot_for(task_id, actor.user_id)
+
+    async def generate():
+        async for chunk in iter_listing_events(
+            service, task_id, actor.user_id, request.is_disconnected
+        ):
+            yield chunk
 
     return StreamingResponse(generate(), media_type="text/event-stream")
