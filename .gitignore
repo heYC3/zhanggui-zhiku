@@ -1,0 +1,44 @@
+# 密钥和本机环境
+.env
+**/.env
+!**/.env.example
+.venv/
+**/.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+
+# 运行产物
+knowledge_base/uv.lock
+knowledge_base/constraints-cpu.txt
+knowledge_base/logs/
+knowledge_base/output/
+knowledge_base/temp-files/
+knowledge_base/models/
+knowledge_base/deploy/volumes/
+knowledge_base/listing_data/runtime/
+
+# 编辑器
+.idea/
+.vscode/
+*.iml
+
+# 系统
+.DS_Store
+Thumbs.db
+
+# 买来的课件和压缩包。体积大，压缩包里还有密钥。
+课程资料/
+
+# 厂商用户手册，不放进仓库
+knowledge_base/data/samples/*.pdf
+
+# 学习笔记、求职草稿和本机环境记录。留在这台电脑，不进仓库。
+学习指南.md
+交付/
+私人笔记/
+knowledge_base/.local.ps1
+knowledge_base/.cache/

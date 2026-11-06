@@ -1,0 +1,622 @@
+{
+  "frozen_on": "2026-11-05",
+  "corpus": "listing_data/products 自编 3 个商品，synthetic，不是在售商品",
+  "fields": [
+    "问题",
+    "标准要点",
+    "证据位置",
+    "题型"
+  ],
+  "note": "冻结测集。对外基线只报这一份，不要拿开发集调完再改这里的题。",
+  "tasks": [
+    {
+      "id": "paraphrase-battery",
+      "split": "frozen",
+      "题型": "改写检索",
+      "问题": "掌柜示例耳机 X1 单次充电能听多久",
+      "标准要点": [
+        "连续播放 30 小时"
+      ],
+      "证据位置": "listing_data/products/zg-ear-x1.json#zg-ear-x1-play",
+      "kind": "retrieval",
+      "query": "掌柜示例耳机 X1 单次充电能听多久",
+      "sku": "zg-ear-x1",
+      "expect_chunk": "zg-ear-x1-play",
+      "purpose": "问法里没有「连续播放」，用来看 HyDE 是否比关键词多找回证据"
+    },
+    {
+      "id": "keyword-bluetooth",
+      "split": "frozen",
+      "题型": "关键词检索",
+      "问题": "掌柜示例耳机 X1 的蓝牙版本",
+      "标准要点": [
+        "蓝牙版本是 5.3"
+      ],
+      "证据位置": "listing_data/products/zg-ear-x1.json#zg-ear-x1-link",
+      "kind": "retrieval",
+      "query": "掌柜示例耳机 X1 的蓝牙版本",
+      "sku": "zg-ear-x1",
+      "expect_chunk": "zg-ear-x1-link",
+      "purpose": "问法里带了原文词，关键词本身就应该命中"
+    },
+    {
+      "id": "pro-anc",
+      "split": "frozen",
+      "题型": "型号区分",
+      "问题": "掌柜示例耳机 X1 Pro 有没有主动降噪",
+      "标准要点": [
+        "支持主动降噪"
+      ],
+      "证据位置": "listing_data/products/zg-ear-x1-pro.json#zg-ear-x1-pro-anc",
+      "kind": "retrieval",
+      "query": "掌柜示例耳机 X1 Pro 有没有主动降噪",
+      "sku": "zg-ear-x1-pro",
+      "expect_chunk": "zg-ear-x1-pro-anc",
+      "purpose": "相近型号必须命中 Pro，不能拿 X1 的资料充数"
+    },
+    {
+      "id": "kw-x1-weight",
+      "split": "frozen",
+      "题型": "关键词检索",
+      "问题": "掌柜示例耳机 X1 单耳重量多少克",
+      "标准要点": [
+        "单耳重量 4.8 克"
+      ],
+      "证据位置": "listing_data/products/zg-ear-x1.json#zg-ear-x1-weight",
+      "kind": "retrieval",
+      "query": "掌柜示例耳机 X1 单耳重量多少克",
+      "sku": "zg-ear-x1",
+      "expect_chunk": "zg-ear-x1-weight",
+      "purpose": "问法带了重量和克"
+    },
+    {
+      "id": "kw-x1-charge",
+      "split": "frozen",
+      "题型": "关键词检索",
+      "问题": "掌柜示例耳机 X1 充满需要多少分钟",
+      "标准要点": [
+        "大约需要 40 分钟"
+      ],
+      "证据位置": "listing_data/products/zg-ear-x1.json#zg-ear-x1-charge",
+      "kind": "retrieval",
+      "query": "掌柜示例耳机 X1 充满需要多少分钟",
+      "sku": "zg-ear-x1",
+      "expect_chunk": "zg-ear-x1-charge",
+      "purpose": "问法带了充满和分钟"
+    },
+    {
+      "id": "kw-x1-play",
+      "split": "frozen",
+      "题型": "关键词检索",
+      "问题": "掌柜示例耳机 X1 可以连续播放多久",
+      "标准要点": [
+        "连续播放 30 小时"
+      ],
+      "证据位置": "listing_data/products/zg-ear-x1.json#zg-ear-x1-play",
+      "kind": "retrieval",
+      "query": "掌柜示例耳机 X1 可以连续播放多久",
+      "sku": "zg-ear-x1",
+      "expect_chunk": "zg-ear-x1-play",
+      "purpose": "问法带了连续播放"
+    },
+    {
+      "id": "kw-pro-play",
+      "split": "frozen",
+      "题型": "关键词检索",
+      "问题": "掌柜示例耳机 X1 Pro 连续播放多久",
+      "标准要点": [
+        "连续播放 40 小时"
+      ],
+      "证据位置": "listing_data/products/zg-ear-x1-pro.json#zg-ear-x1-pro-play",
+      "kind": "retrieval",
+      "query": "掌柜示例耳机 X1 Pro 连续播放多久",
+      "sku": "zg-ear-x1-pro",
+      "expect_chunk": "zg-ear-x1-pro-play",
+      "purpose": "Pro 的播放时间，不能写成 30 小时"
+    },
+    {
+      "id": "kw-pro-weight",
+      "split": "frozen",
+      "题型": "关键词检索",
+      "问题": "掌柜示例耳机 X1 Pro 单耳重量",
+      "标准要点": [
+        "单耳重量 5.2 克"
+      ],
+      "证据位置": "listing_data/products/zg-ear-x1-pro.json#zg-ear-x1-pro-weight",
+      "kind": "retrieval",
+      "query": "掌柜示例耳机 X1 Pro 单耳重量",
+      "sku": "zg-ear-x1-pro",
+      "expect_chunk": "zg-ear-x1-pro-weight",
+      "purpose": "问法带了单耳重量"
+    },
+    {
+      "id": "kw-p20-cap",
+      "split": "frozen",
+      "题型": "关键词检索",
+      "问题": "掌柜示例移动电源 P20 电芯容量多少毫安时",
+      "标准要点": [
+        "电芯容量 20000 毫安时"
+      ],
+      "证据位置": "listing_data/products/zg-power-p20.json#zg-power-p20-capacity",
+      "kind": "retrieval",
+      "query": "掌柜示例移动电源 P20 电芯容量多少毫安时",
+      "sku": "zg-power-p20",
+      "expect_chunk": "zg-power-p20-capacity",
+      "purpose": "问法带了电芯容量和毫安时"
+    },
+    {
+      "id": "kw-p20-out",
+      "split": "frozen",
+      "题型": "关键词检索",
+      "问题": "掌柜示例移动电源 P20 单口输出多少瓦",
+      "标准要点": [
+        "单口输出 65 瓦"
+      ],
+      "证据位置": "listing_data/products/zg-power-p20.json#zg-power-p20-output",
+      "kind": "retrieval",
+      "query": "掌柜示例移动电源 P20 单口输出多少瓦",
+      "sku": "zg-power-p20",
+      "expect_chunk": "zg-power-p20-output",
+      "purpose": "问法带了单口输出"
+    },
+    {
+      "id": "para-x1-runtime",
+      "split": "frozen",
+      "题型": "改写检索",
+      "问题": "掌柜示例耳机 X1 续航多久",
+      "标准要点": [
+        "连续播放 30 小时"
+      ],
+      "证据位置": "listing_data/products/zg-ear-x1.json#zg-ear-x1-play",
+      "kind": "retrieval",
+      "query": "掌柜示例耳机 X1 续航多久",
+      "sku": "zg-ear-x1",
+      "expect_chunk": "zg-ear-x1-play",
+      "purpose": "用续航代替连续播放"
+    },
+    {
+      "id": "para-x1-day",
+      "split": "frozen",
+      "题型": "改写检索",
+      "问题": "掌柜示例耳机 X1 出门一天电够不够听歌",
+      "标准要点": [
+        "只统计听歌"
+      ],
+      "证据位置": "listing_data/products/zg-ear-x1.json#zg-ear-x1-play",
+      "kind": "retrieval",
+      "query": "掌柜示例耳机 X1 出门一天电够不够听歌",
+      "sku": "zg-ear-x1",
+      "expect_chunk": "zg-ear-x1-play",
+      "purpose": "口语问一天够不够"
+    },
+    {
+      "id": "para-x1-charge",
+      "split": "frozen",
+      "题型": "改写检索",
+      "问题": "掌柜示例耳机 X1 没电了要充多久",
+      "标准要点": [
+        "大约需要 40 分钟"
+      ],
+      "证据位置": "listing_data/products/zg-ear-x1.json#zg-ear-x1-charge",
+      "kind": "retrieval",
+      "query": "掌柜示例耳机 X1 没电了要充多久",
+      "sku": "zg-ear-x1",
+      "expect_chunk": "zg-ear-x1-charge",
+      "purpose": "没有说充满和分钟"
+    },
+    {
+      "id": "para-x1-heavy",
+      "split": "frozen",
+      "题型": "改写检索",
+      "问题": "掌柜示例耳机 X1 戴着沉不沉",
+      "标准要点": [
+        "单耳重量 4.8 克"
+      ],
+      "证据位置": "listing_data/products/zg-ear-x1.json#zg-ear-x1-weight",
+      "kind": "retrieval",
+      "query": "掌柜示例耳机 X1 戴着沉不沉",
+      "sku": "zg-ear-x1",
+      "expect_chunk": "zg-ear-x1-weight",
+      "purpose": "没有说重量和克"
+    },
+    {
+      "id": "para-x1-pair",
+      "split": "frozen",
+      "题型": "改写检索",
+      "问题": "掌柜示例耳机 X1 怎么和手机连上",
+      "标准要点": [
+        "打开盒盖就能和手机配对"
+      ],
+      "证据位置": "listing_data/products/zg-ear-x1.json#zg-ear-x1-link",
+      "kind": "retrieval",
+      "query": "掌柜示例耳机 X1 怎么和手机连上",
+      "sku": "zg-ear-x1",
+      "expect_chunk": "zg-ear-x1-link",
+      "purpose": "没有说蓝牙"
+    },
+    {
+      "id": "para-pro-listen",
+      "split": "frozen",
+      "题型": "改写检索",
+      "问题": "掌柜示例耳机 X1 Pro 能听多久",
+      "标准要点": [
+        "连续播放 40 小时"
+      ],
+      "证据位置": "listing_data/products/zg-ear-x1-pro.json#zg-ear-x1-pro-play",
+      "kind": "retrieval",
+      "query": "掌柜示例耳机 X1 Pro 能听多久",
+      "sku": "zg-ear-x1-pro",
+      "expect_chunk": "zg-ear-x1-pro-play",
+      "purpose": "Pro 的口语续航"
+    },
+    {
+      "id": "para-pro-subway",
+      "split": "frozen",
+      "题型": "改写检索",
+      "问题": "掌柜示例耳机 X1 Pro 坐地铁吵不吵",
+      "标准要点": [
+        "支持主动降噪"
+      ],
+      "证据位置": "listing_data/products/zg-ear-x1-pro.json#zg-ear-x1-pro-anc",
+      "kind": "retrieval",
+      "query": "掌柜示例耳机 X1 Pro 坐地铁吵不吵",
+      "sku": "zg-ear-x1-pro",
+      "expect_chunk": "zg-ear-x1-pro-anc",
+      "purpose": "没有说降噪"
+    },
+    {
+      "id": "para-pro-heavier",
+      "split": "frozen",
+      "题型": "改写检索",
+      "问题": "掌柜示例耳机 X1 Pro 会不会更重",
+      "标准要点": [
+        "比 X1 略重"
+      ],
+      "证据位置": "listing_data/products/zg-ear-x1-pro.json#zg-ear-x1-pro-weight",
+      "kind": "retrieval",
+      "query": "掌柜示例耳机 X1 Pro 会不会更重",
+      "sku": "zg-ear-x1-pro",
+      "expect_chunk": "zg-ear-x1-pro-weight",
+      "purpose": "没有说克"
+    },
+    {
+      "id": "para-p20-laptop",
+      "split": "frozen",
+      "题型": "改写检索",
+      "问题": "掌柜示例移动电源 P20 能不能给笔记本充电",
+      "标准要点": [
+        "可以给笔记本充电"
+      ],
+      "证据位置": "listing_data/products/zg-power-p20.json#zg-power-p20-output",
+      "kind": "retrieval",
+      "query": "掌柜示例移动电源 P20 能不能给笔记本充电",
+      "sku": "zg-power-p20",
+      "expect_chunk": "zg-power-p20-output",
+      "purpose": "问能不能给笔记本充电"
+    },
+    {
+      "id": "para-p20-power",
+      "split": "frozen",
+      "题型": "改写检索",
+      "问题": "掌柜示例移动电源 P20 电量有多大",
+      "标准要点": [
+        "电芯容量 20000 毫安时"
+      ],
+      "证据位置": "listing_data/products/zg-power-p20.json#zg-power-p20-capacity",
+      "kind": "retrieval",
+      "query": "掌柜示例移动电源 P20 电量有多大",
+      "sku": "zg-power-p20",
+      "expect_chunk": "zg-power-p20-capacity",
+      "purpose": "没有说毫安时"
+    },
+    {
+      "id": "para-p20-watt",
+      "split": "frozen",
+      "题型": "改写检索",
+      "问题": "掌柜示例移动电源 P20 功率高不高",
+      "标准要点": [
+        "单口输出 65 瓦"
+      ],
+      "证据位置": "listing_data/products/zg-power-p20.json#zg-power-p20-output",
+      "kind": "retrieval",
+      "query": "掌柜示例移动电源 P20 功率高不高",
+      "sku": "zg-power-p20",
+      "expect_chunk": "zg-power-p20-output",
+      "purpose": "没有说瓦"
+    },
+    {
+      "id": "para-x1-color",
+      "split": "frozen",
+      "题型": "改写检索",
+      "问题": "掌柜示例耳机 X1 有几种外观",
+      "标准要点": [
+        "颜色有黑色和白色"
+      ],
+      "证据位置": "listing_data/products/zg-ear-x1.json#zg-ear-x1-weight",
+      "kind": "retrieval",
+      "query": "掌柜示例耳机 X1 有几种外观",
+      "sku": "zg-ear-x1",
+      "expect_chunk": "zg-ear-x1-weight",
+      "purpose": "外观改写颜色"
+    },
+    {
+      "id": "draft-paraphrase",
+      "split": "frozen",
+      "题型": "草稿要点",
+      "问题": "掌柜示例耳机 X1 单次充电能听多久，写成亚马逊要点",
+      "标准要点": [
+        "连续播放 30 小时"
+      ],
+      "证据位置": "listing_data/products/zg-ear-x1.json#zg-ear-x1-play",
+      "kind": "draft",
+      "query": "掌柜示例耳机 X1 单次充电能听多久，写成亚马逊要点",
+      "sku": "zg-ear-x1",
+      "expect_chunk": "zg-ear-x1-play",
+      "expect_in_text": "30",
+      "forbid_in_text": [
+        "防水",
+        "降噪",
+        "最"
+      ],
+      "purpose": "同一条改写问法，看草稿有没有写出资料里的 30 小时"
+    },
+    {
+      "id": "draft-x1-link",
+      "split": "frozen",
+      "题型": "草稿要点",
+      "问题": "掌柜示例耳机 X1 的蓝牙版本，写成亚马逊要点",
+      "标准要点": [
+        "蓝牙版本是 5.3"
+      ],
+      "证据位置": "listing_data/products/zg-ear-x1.json#zg-ear-x1-link",
+      "kind": "draft",
+      "query": "掌柜示例耳机 X1 的蓝牙版本，写成亚马逊要点",
+      "sku": "zg-ear-x1",
+      "expect_chunk": "zg-ear-x1-link",
+      "expect_in_text": "5.3",
+      "forbid_in_text": [
+        "防水",
+        "降噪",
+        "最"
+      ],
+      "purpose": "要点里要出现 5.3，不能编防水或降噪"
+    },
+    {
+      "id": "draft-x1-weight",
+      "split": "frozen",
+      "题型": "草稿要点",
+      "问题": "掌柜示例耳机 X1 单耳重量，写成亚马逊要点",
+      "标准要点": [
+        "单耳重量 4.8 克"
+      ],
+      "证据位置": "listing_data/products/zg-ear-x1.json#zg-ear-x1-weight",
+      "kind": "draft",
+      "query": "掌柜示例耳机 X1 单耳重量，写成亚马逊要点",
+      "sku": "zg-ear-x1",
+      "expect_chunk": "zg-ear-x1-weight",
+      "expect_in_text": "4.8",
+      "forbid_in_text": [
+        "防水",
+        "降噪",
+        "最"
+      ],
+      "purpose": "要点里要出现 4.8 克"
+    },
+    {
+      "id": "draft-pro-anc",
+      "split": "frozen",
+      "题型": "草稿要点",
+      "问题": "掌柜示例耳机 X1 Pro 有没有主动降噪，写成亚马逊要点",
+      "标准要点": [
+        "支持主动降噪"
+      ],
+      "证据位置": "listing_data/products/zg-ear-x1-pro.json#zg-ear-x1-pro-anc",
+      "kind": "draft",
+      "query": "掌柜示例耳机 X1 Pro 有没有主动降噪，写成亚马逊要点",
+      "sku": "zg-ear-x1-pro",
+      "expect_chunk": "zg-ear-x1-pro-anc",
+      "expect_in_text": "主动降噪",
+      "forbid_in_text": [
+        "防水",
+        "最"
+      ],
+      "purpose": "Pro 可以写降噪，不能写防水"
+    },
+    {
+      "id": "draft-pro-play",
+      "split": "frozen",
+      "题型": "草稿要点",
+      "问题": "掌柜示例耳机 X1 Pro 能听多久，写成亚马逊要点",
+      "标准要点": [
+        "连续播放 40 小时"
+      ],
+      "证据位置": "listing_data/products/zg-ear-x1-pro.json#zg-ear-x1-pro-play",
+      "kind": "draft",
+      "query": "掌柜示例耳机 X1 Pro 能听多久，写成亚马逊要点",
+      "sku": "zg-ear-x1-pro",
+      "expect_chunk": "zg-ear-x1-pro-play",
+      "expect_in_text": "40",
+      "forbid_in_text": [
+        "防水",
+        "最"
+      ],
+      "purpose": "不能把 Pro 写成 30 小时；要点里应有 40"
+    },
+    {
+      "id": "draft-p20-out",
+      "split": "frozen",
+      "题型": "草稿要点",
+      "问题": "掌柜示例移动电源 P20 单口输出，写成亚马逊要点",
+      "标准要点": [
+        "单口输出 65 瓦"
+      ],
+      "证据位置": "listing_data/products/zg-power-p20.json#zg-power-p20-output",
+      "kind": "draft",
+      "query": "掌柜示例移动电源 P20 单口输出，写成亚马逊要点",
+      "sku": "zg-power-p20",
+      "expect_chunk": "zg-power-p20-output",
+      "expect_in_text": "65",
+      "forbid_in_text": [
+        "防水",
+        "最"
+      ],
+      "purpose": "要点里要出现 65 瓦"
+    },
+    {
+      "id": "draft-p20-cap",
+      "split": "frozen",
+      "题型": "草稿要点",
+      "问题": "掌柜示例移动电源 P20 电芯容量，写成亚马逊要点",
+      "标准要点": [
+        "电芯容量 20000 毫安时"
+      ],
+      "证据位置": "listing_data/products/zg-power-p20.json#zg-power-p20-capacity",
+      "kind": "draft",
+      "query": "掌柜示例移动电源 P20 电芯容量，写成亚马逊要点",
+      "sku": "zg-power-p20",
+      "expect_chunk": "zg-power-p20-capacity",
+      "expect_in_text": "20000",
+      "forbid_in_text": [
+        "防水",
+        "最"
+      ],
+      "purpose": "要点里要出现 20000"
+    },
+    {
+      "id": "ambiguous-family",
+      "split": "frozen",
+      "题型": "型号歧义",
+      "问题": "掌柜示例耳机能听多久",
+      "标准要点": [
+        "先确认是 X1 还是 X1 Pro，不能直接写草稿"
+      ],
+      "证据位置": "listing_data/products/zg-ear-x1.json 与 zg-ear-x1-pro.json 共用别名「掌柜示例耳机」",
+      "kind": "workflow",
+      "query": "掌柜示例耳机能听多久",
+      "purpose": "只说了系列，X1 和 X1 Pro 都像，必须先问清型号",
+      "expect_status": "ambiguous"
+    },
+    {
+      "id": "missing-product",
+      "split": "frozen",
+      "题型": "无资料",
+      "问题": "给星河无人机 Mini 写商品标题",
+      "标准要点": [
+        "资料不足，不写草稿"
+      ],
+      "证据位置": "listing_data/products 中不存在该型号",
+      "kind": "workflow",
+      "query": "给星河无人机 Mini 写商品标题",
+      "purpose": "资料库里没有这个商品，不能硬写草稿",
+      "expect_status": "insufficient"
+    },
+    {
+      "id": "pronoun-followup",
+      "split": "frozen",
+      "题型": "指代续问",
+      "问题": "把它写成亚马逊五点",
+      "标准要点": [
+        "草稿型号是 X1 Pro",
+        "支持主动降噪"
+      ],
+      "证据位置": "listing_data/products/zg-ear-x1-pro.json#zg-ear-x1-pro-anc",
+      "kind": "workflow",
+      "query": "把它写成亚马逊五点",
+      "purpose": "上一句已经点名 Pro，这句「它」不能改判成 X1",
+      "history": [
+        "我在看掌柜示例耳机 X1 Pro"
+      ],
+      "expect_sku": "zg-ear-x1-pro"
+    },
+    {
+      "id": "ambiguous-color",
+      "split": "frozen",
+      "题型": "型号歧义",
+      "问题": "掌柜示例耳机有几种外观",
+      "标准要点": [
+        "先确认型号"
+      ],
+      "证据位置": "listing_data/products/zg-ear-x1.json 与 zg-ear-x1-pro.json 共用别名",
+      "kind": "workflow",
+      "query": "掌柜示例耳机有几种外观",
+      "purpose": "只说系列，两款耳机都能对上，先问清型号",
+      "expect_status": "ambiguous"
+    },
+    {
+      "id": "missing-lamp",
+      "split": "frozen",
+      "题型": "无资料",
+      "问题": "给北欧台灯 L2 写商品标题",
+      "标准要点": [
+        "资料不足，不写草稿"
+      ],
+      "证据位置": "listing_data/products 中不存在该型号",
+      "kind": "workflow",
+      "query": "给北欧台灯 L2 写商品标题",
+      "purpose": "资料库没有台灯",
+      "expect_status": "insufficient"
+    },
+    {
+      "id": "missing-watch",
+      "split": "frozen",
+      "题型": "无资料",
+      "问题": "手表 S3 续航多久",
+      "标准要点": [
+        "资料不足，不写草稿"
+      ],
+      "证据位置": "listing_data/products 中不存在该型号",
+      "kind": "workflow",
+      "query": "手表 S3 续航多久",
+      "purpose": "名字像自编品牌，但资料里没有手表",
+      "expect_status": "insufficient"
+    },
+    {
+      "id": "pronoun-p20",
+      "split": "frozen",
+      "题型": "指代续问",
+      "问题": "它单口多少瓦，写成要点",
+      "标准要点": [
+        "单口输出 65 瓦"
+      ],
+      "证据位置": "listing_data/products/zg-power-p20.json#zg-power-p20-output",
+      "kind": "workflow",
+      "query": "它单口多少瓦，写成要点",
+      "purpose": "上一句点名 P20，这句「它」不能改判成耳机",
+      "history": [
+        "我在看掌柜示例移动电源 P20"
+      ],
+      "expect_sku": "zg-power-p20"
+    },
+    {
+      "id": "pronoun-x1",
+      "split": "frozen",
+      "题型": "指代续问",
+      "问题": "它多重，写成要点",
+      "标准要点": [
+        "单耳重量 4.8 克"
+      ],
+      "证据位置": "listing_data/products/zg-ear-x1.json#zg-ear-x1-weight",
+      "kind": "workflow",
+      "query": "它多重，写成要点",
+      "purpose": "上一句点名 X1，这句「它」不能改判成 Pro",
+      "history": [
+        "我在看掌柜示例耳机 X1"
+      ],
+      "expect_sku": "zg-ear-x1"
+    },
+    {
+      "id": "ambiguous-brand",
+      "split": "frozen",
+      "题型": "型号歧义",
+      "问题": "掌柜示例能用多久",
+      "标准要点": [
+        "先确认型号"
+      ],
+      "证据位置": "三个商品共用别名「掌柜示例」",
+      "kind": "workflow",
+      "query": "掌柜示例能用多久",
+      "purpose": "品牌名同时对上耳机和移动电源，必须先问清型号",
+      "expect_status": "ambiguous"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "sku": "zg-ear-x1-pro",
+  "brand": "掌柜示例",
+  "model": "X1 Pro",
+  "family": "掌柜示例耳机",
+  "unique_aliases": ["掌柜示例耳机 X1 Pro", "掌柜示例耳机X1 Pro", "X1 Pro"],
+  "shared_aliases": ["掌柜示例耳机", "掌柜示例"],
+  "chunks": [
+    {
+      "id": "zg-ear-x1-pro-play",
+      "title": "播放时间",
+      "text": "音乐可以连续播放 40 小时，只统计听歌，不含通话。"
+    },
+    {
+      "id": "zg-ear-x1-pro-anc",
+      "title": "降噪",
+      "text": "支持主动降噪，嘈杂环境里也能听清。"
+    },
+    {
+      "id": "zg-ear-x1-pro-weight",
+      "title": "重量",
+      "text": "单耳重量 5.2 克，比 X1 略重。"
+    }
+  ]
+}

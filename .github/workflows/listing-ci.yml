@@ -1,0 +1,25 @@
+name: listing-agent
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: knowledge_base
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Listing dependencies
+        run: pip install -r requirements-listing.txt
+      - name: Run Listing regression
+        run: python -m unittest test.listing.test_listing_loop -v
+      - name: Recompute frozen baseline and fail if the table drifts
+        run: |
+          python -m app.listing_agent.eval
+          git diff --exit-code -- listing_data/reports/baseline.md

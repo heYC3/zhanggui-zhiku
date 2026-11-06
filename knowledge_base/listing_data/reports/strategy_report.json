@@ -1,0 +1,2029 @@
+{
+  "corpus": "listing_data/products 自编 3 个商品，synthetic，不是在售商品",
+  "split": "frozen_test",
+  "task_count": 38,
+  "model_card": {
+    "draft_generator": "template-draft-conservative",
+    "embedding": "offline-bigram-64",
+    "reranker": "local-term-overlap",
+    "chat_model_live": "未接入。配置 LISTING_COMPARE_MODELS 之前，不会把同一任务集发给真实主模型，也就没有 token 费用。"
+  },
+  "retrieval": [
+    {
+      "id": "paraphrase-battery",
+      "题型": "改写检索",
+      "purpose": "问法里没有「连续播放」，用来看 HyDE 是否比关键词多找回证据",
+      "expect_chunk": "zg-ear-x1-play",
+      "strategies": {
+        "sparse": {
+          "hit_at_1": false,
+          "hit_at_3": false,
+          "duration_ms": 5.633,
+          "top": [
+            "zg-ear-x1-charge"
+          ]
+        },
+        "dense": {
+          "hit_at_1": false,
+          "hit_at_3": false,
+          "duration_ms": 4.235,
+          "top": [
+            "zg-ear-x1-charge",
+            "zg-ear-x1-link",
+            "zg-ear-x1-weight"
+          ]
+        },
+        "rrf": {
+          "hit_at_1": false,
+          "hit_at_3": false,
+          "duration_ms": 2.879,
+          "top": [
+            "zg-ear-x1-charge",
+            "zg-ear-x1-link",
+            "zg-ear-x1-weight"
+          ]
+        },
+        "rrf_hyde": {
+          "hit_at_1": false,
+          "hit_at_3": true,
+          "duration_ms": 3.94,
+          "top": [
+            "zg-ear-x1-charge",
+            "zg-ear-x1-link",
+            "zg-ear-x1-play"
+          ]
+        }
+      },
+      "rerank_down": {
+        "degraded": true,
+        "hit_at_3": true,
+        "reranker": "degraded_to_rrf"
+      }
+    },
+    {
+      "id": "keyword-bluetooth",
+      "题型": "关键词检索",
+      "purpose": "问法里带了原文词，关键词本身就应该命中",
+      "expect_chunk": "zg-ear-x1-link",
+      "strategies": {
+        "sparse": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.433,
+          "top": [
+            "zg-ear-x1-link",
+            "zg-ear-x1-charge"
+          ]
+        },
+        "dense": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.54,
+          "top": [
+            "zg-ear-x1-link",
+            "zg-ear-x1-charge",
+            "zg-ear-x1-play"
+          ]
+        },
+        "rrf": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 3.215,
+          "top": [
+            "zg-ear-x1-link",
+            "zg-ear-x1-charge",
+            "zg-ear-x1-play"
+          ]
+        },
+        "rrf_hyde": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.543,
+          "top": [
+            "zg-ear-x1-link",
+            "zg-ear-x1-charge",
+            "zg-ear-x1-play"
+          ]
+        }
+      },
+      "rerank_down": {
+        "degraded": true,
+        "hit_at_3": true,
+        "reranker": "degraded_to_rrf"
+      }
+    },
+    {
+      "id": "pro-anc",
+      "题型": "型号区分",
+      "purpose": "相近型号必须命中 Pro，不能拿 X1 的资料充数",
+      "expect_chunk": "zg-ear-x1-pro-anc",
+      "strategies": {
+        "sparse": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.485,
+          "top": [
+            "zg-ear-x1-pro-anc",
+            "zg-ear-x1-pro-weight"
+          ]
+        },
+        "dense": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 3.042,
+          "top": [
+            "zg-ear-x1-pro-anc",
+            "zg-ear-x1-pro-weight",
+            "zg-ear-x1-pro-play"
+          ]
+        },
+        "rrf": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.483,
+          "top": [
+            "zg-ear-x1-pro-anc",
+            "zg-ear-x1-pro-weight",
+            "zg-ear-x1-pro-play"
+          ]
+        },
+        "rrf_hyde": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.431,
+          "top": [
+            "zg-ear-x1-pro-anc",
+            "zg-ear-x1-pro-weight",
+            "zg-ear-x1-pro-play"
+          ]
+        }
+      },
+      "rerank_down": {
+        "degraded": true,
+        "hit_at_3": true,
+        "reranker": "degraded_to_rrf"
+      }
+    },
+    {
+      "id": "kw-x1-weight",
+      "题型": "关键词检索",
+      "purpose": "问法带了重量和克",
+      "expect_chunk": "zg-ear-x1-weight",
+      "strategies": {
+        "sparse": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 3.087,
+          "top": [
+            "zg-ear-x1-weight",
+            "zg-ear-x1-charge"
+          ]
+        },
+        "dense": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.711,
+          "top": [
+            "zg-ear-x1-weight",
+            "zg-ear-x1-link",
+            "zg-ear-x1-play"
+          ]
+        },
+        "rrf": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.604,
+          "top": [
+            "zg-ear-x1-weight",
+            "zg-ear-x1-charge",
+            "zg-ear-x1-link"
+          ]
+        },
+        "rrf_hyde": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.489,
+          "top": [
+            "zg-ear-x1-weight",
+            "zg-ear-x1-charge",
+            "zg-ear-x1-link"
+          ]
+        }
+      },
+      "rerank_down": {
+        "degraded": true,
+        "hit_at_3": true,
+        "reranker": "degraded_to_rrf"
+      }
+    },
+    {
+      "id": "kw-x1-charge",
+      "题型": "关键词检索",
+      "purpose": "问法带了充满和分钟",
+      "expect_chunk": "zg-ear-x1-charge",
+      "strategies": {
+        "sparse": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 3.327,
+          "top": [
+            "zg-ear-x1-charge"
+          ]
+        },
+        "dense": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.727,
+          "top": [
+            "zg-ear-x1-charge",
+            "zg-ear-x1-link",
+            "zg-ear-x1-weight"
+          ]
+        },
+        "rrf": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.566,
+          "top": [
+            "zg-ear-x1-charge",
+            "zg-ear-x1-link",
+            "zg-ear-x1-weight"
+          ]
+        },
+        "rrf_hyde": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 3.172,
+          "top": [
+            "zg-ear-x1-charge",
+            "zg-ear-x1-link",
+            "zg-ear-x1-weight"
+          ]
+        }
+      },
+      "rerank_down": {
+        "degraded": true,
+        "hit_at_3": true,
+        "reranker": "degraded_to_rrf"
+      }
+    },
+    {
+      "id": "kw-x1-play",
+      "题型": "关键词检索",
+      "purpose": "问法带了连续播放",
+      "expect_chunk": "zg-ear-x1-play",
+      "strategies": {
+        "sparse": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.438,
+          "top": [
+            "zg-ear-x1-play",
+            "zg-ear-x1-charge"
+          ]
+        },
+        "dense": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.486,
+          "top": [
+            "zg-ear-x1-play",
+            "zg-ear-x1-link",
+            "zg-ear-x1-weight"
+          ]
+        },
+        "rrf": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 3.19,
+          "top": [
+            "zg-ear-x1-play",
+            "zg-ear-x1-charge",
+            "zg-ear-x1-weight"
+          ]
+        },
+        "rrf_hyde": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.6,
+          "top": [
+            "zg-ear-x1-play",
+            "zg-ear-x1-charge",
+            "zg-ear-x1-weight"
+          ]
+        }
+      },
+      "rerank_down": {
+        "degraded": true,
+        "hit_at_3": true,
+        "reranker": "degraded_to_rrf"
+      }
+    },
+    {
+      "id": "kw-pro-play",
+      "题型": "关键词检索",
+      "purpose": "Pro 的播放时间，不能写成 30 小时",
+      "expect_chunk": "zg-ear-x1-pro-play",
+      "strategies": {
+        "sparse": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.229,
+          "top": [
+            "zg-ear-x1-pro-play",
+            "zg-ear-x1-pro-weight"
+          ]
+        },
+        "dense": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 3.63,
+          "top": [
+            "zg-ear-x1-pro-play",
+            "zg-ear-x1-pro-weight",
+            "zg-ear-x1-pro-anc"
+          ]
+        },
+        "rrf": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.758,
+          "top": [
+            "zg-ear-x1-pro-play",
+            "zg-ear-x1-pro-weight",
+            "zg-ear-x1-pro-anc"
+          ]
+        },
+        "rrf_hyde": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.271,
+          "top": [
+            "zg-ear-x1-pro-play",
+            "zg-ear-x1-pro-weight",
+            "zg-ear-x1-pro-anc"
+          ]
+        }
+      },
+      "rerank_down": {
+        "degraded": true,
+        "hit_at_3": true,
+        "reranker": "degraded_to_rrf"
+      }
+    },
+    {
+      "id": "kw-pro-weight",
+      "题型": "关键词检索",
+      "purpose": "问法带了单耳重量",
+      "expect_chunk": "zg-ear-x1-pro-weight",
+      "strategies": {
+        "sparse": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.317,
+          "top": [
+            "zg-ear-x1-pro-weight"
+          ]
+        },
+        "dense": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.921,
+          "top": [
+            "zg-ear-x1-pro-weight",
+            "zg-ear-x1-pro-anc",
+            "zg-ear-x1-pro-play"
+          ]
+        },
+        "rrf": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.273,
+          "top": [
+            "zg-ear-x1-pro-weight",
+            "zg-ear-x1-pro-anc",
+            "zg-ear-x1-pro-play"
+          ]
+        },
+        "rrf_hyde": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.315,
+          "top": [
+            "zg-ear-x1-pro-weight",
+            "zg-ear-x1-pro-anc",
+            "zg-ear-x1-pro-play"
+          ]
+        }
+      },
+      "rerank_down": {
+        "degraded": true,
+        "hit_at_3": true,
+        "reranker": "degraded_to_rrf"
+      }
+    },
+    {
+      "id": "kw-p20-cap",
+      "题型": "关键词检索",
+      "purpose": "问法带了电芯容量和毫安时",
+      "expect_chunk": "zg-power-p20-capacity",
+      "strategies": {
+        "sparse": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.974,
+          "top": [
+            "zg-power-p20-capacity"
+          ]
+        },
+        "dense": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.473,
+          "top": [
+            "zg-power-p20-capacity",
+            "zg-power-p20-output"
+          ]
+        },
+        "rrf": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.259,
+          "top": [
+            "zg-power-p20-capacity",
+            "zg-power-p20-output"
+          ]
+        },
+        "rrf_hyde": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.197,
+          "top": [
+            "zg-power-p20-capacity",
+            "zg-power-p20-output"
+          ]
+        }
+      },
+      "rerank_down": {
+        "degraded": true,
+        "hit_at_3": true,
+        "reranker": "degraded_to_rrf"
+      }
+    },
+    {
+      "id": "kw-p20-out",
+      "题型": "关键词检索",
+      "purpose": "问法带了单口输出",
+      "expect_chunk": "zg-power-p20-output",
+      "strategies": {
+        "sparse": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.925,
+          "top": [
+            "zg-power-p20-output"
+          ]
+        },
+        "dense": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.245,
+          "top": [
+            "zg-power-p20-output",
+            "zg-power-p20-capacity"
+          ]
+        },
+        "rrf": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.151,
+          "top": [
+            "zg-power-p20-output",
+            "zg-power-p20-capacity"
+          ]
+        },
+        "rrf_hyde": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.158,
+          "top": [
+            "zg-power-p20-output",
+            "zg-power-p20-capacity"
+          ]
+        }
+      },
+      "rerank_down": {
+        "degraded": true,
+        "hit_at_3": true,
+        "reranker": "degraded_to_rrf"
+      }
+    },
+    {
+      "id": "para-x1-runtime",
+      "题型": "改写检索",
+      "purpose": "用续航代替连续播放",
+      "expect_chunk": "zg-ear-x1-play",
+      "strategies": {
+        "sparse": {
+          "hit_at_1": false,
+          "hit_at_3": false,
+          "duration_ms": 5.229,
+          "top": [
+            "zg-ear-x1-charge"
+          ]
+        },
+        "dense": {
+          "hit_at_1": false,
+          "hit_at_3": true,
+          "duration_ms": 2.628,
+          "top": [
+            "zg-ear-x1-charge",
+            "zg-ear-x1-link",
+            "zg-ear-x1-play"
+          ]
+        },
+        "rrf": {
+          "hit_at_1": false,
+          "hit_at_3": true,
+          "duration_ms": 2.913,
+          "top": [
+            "zg-ear-x1-charge",
+            "zg-ear-x1-link",
+            "zg-ear-x1-play"
+          ]
+        },
+        "rrf_hyde": {
+          "hit_at_1": false,
+          "hit_at_3": true,
+          "duration_ms": 3.388,
+          "top": [
+            "zg-ear-x1-charge",
+            "zg-ear-x1-link",
+            "zg-ear-x1-play"
+          ]
+        }
+      },
+      "rerank_down": {
+        "degraded": true,
+        "hit_at_3": true,
+        "reranker": "degraded_to_rrf"
+      }
+    },
+    {
+      "id": "para-x1-day",
+      "题型": "改写检索",
+      "purpose": "口语问一天够不够",
+      "expect_chunk": "zg-ear-x1-play",
+      "strategies": {
+        "sparse": {
+          "hit_at_1": false,
+          "hit_at_3": true,
+          "duration_ms": 2.476,
+          "top": [
+            "zg-ear-x1-charge",
+            "zg-ear-x1-play"
+          ]
+        },
+        "dense": {
+          "hit_at_1": false,
+          "hit_at_3": true,
+          "duration_ms": 2.72,
+          "top": [
+            "zg-ear-x1-charge",
+            "zg-ear-x1-play",
+            "zg-ear-x1-link"
+          ]
+        },
+        "rrf": {
+          "hit_at_1": false,
+          "hit_at_3": true,
+          "duration_ms": 3.003,
+          "top": [
+            "zg-ear-x1-charge",
+            "zg-ear-x1-play",
+            "zg-ear-x1-link"
+          ]
+        },
+        "rrf_hyde": {
+          "hit_at_1": false,
+          "hit_at_3": true,
+          "duration_ms": 2.525,
+          "top": [
+            "zg-ear-x1-charge",
+            "zg-ear-x1-play",
+            "zg-ear-x1-link"
+          ]
+        }
+      },
+      "rerank_down": {
+        "degraded": true,
+        "hit_at_3": true,
+        "reranker": "degraded_to_rrf"
+      }
+    },
+    {
+      "id": "para-x1-charge",
+      "题型": "改写检索",
+      "purpose": "没有说充满和分钟",
+      "expect_chunk": "zg-ear-x1-charge",
+      "strategies": {
+        "sparse": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.491,
+          "top": [
+            "zg-ear-x1-charge"
+          ]
+        },
+        "dense": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 3.163,
+          "top": [
+            "zg-ear-x1-charge",
+            "zg-ear-x1-link",
+            "zg-ear-x1-weight"
+          ]
+        },
+        "rrf": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.653,
+          "top": [
+            "zg-ear-x1-charge",
+            "zg-ear-x1-link",
+            "zg-ear-x1-weight"
+          ]
+        },
+        "rrf_hyde": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.493,
+          "top": [
+            "zg-ear-x1-charge",
+            "zg-ear-x1-link",
+            "zg-ear-x1-weight"
+          ]
+        }
+      },
+      "rerank_down": {
+        "degraded": true,
+        "hit_at_3": true,
+        "reranker": "degraded_to_rrf"
+      }
+    },
+    {
+      "id": "para-x1-heavy",
+      "题型": "改写检索",
+      "purpose": "没有说重量和克",
+      "expect_chunk": "zg-ear-x1-weight",
+      "strategies": {
+        "sparse": {
+          "hit_at_1": false,
+          "hit_at_3": false,
+          "duration_ms": 3.093,
+          "top": [
+            "zg-ear-x1-charge"
+          ]
+        },
+        "dense": {
+          "hit_at_1": false,
+          "hit_at_3": true,
+          "duration_ms": 2.573,
+          "top": [
+            "zg-ear-x1-charge",
+            "zg-ear-x1-link",
+            "zg-ear-x1-weight"
+          ]
+        },
+        "rrf": {
+          "hit_at_1": false,
+          "hit_at_3": true,
+          "duration_ms": 2.989,
+          "top": [
+            "zg-ear-x1-charge",
+            "zg-ear-x1-link",
+            "zg-ear-x1-weight"
+          ]
+        },
+        "rrf_hyde": {
+          "hit_at_1": false,
+          "hit_at_3": true,
+          "duration_ms": 2.631,
+          "top": [
+            "zg-ear-x1-charge",
+            "zg-ear-x1-link",
+            "zg-ear-x1-weight"
+          ]
+        }
+      },
+      "rerank_down": {
+        "degraded": true,
+        "hit_at_3": true,
+        "reranker": "degraded_to_rrf"
+      }
+    },
+    {
+      "id": "para-x1-pair",
+      "题型": "改写检索",
+      "purpose": "没有说蓝牙",
+      "expect_chunk": "zg-ear-x1-link",
+      "strategies": {
+        "sparse": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.504,
+          "top": [
+            "zg-ear-x1-link",
+            "zg-ear-x1-charge"
+          ]
+        },
+        "dense": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.482,
+          "top": [
+            "zg-ear-x1-link",
+            "zg-ear-x1-charge",
+            "zg-ear-x1-play"
+          ]
+        },
+        "rrf": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.708,
+          "top": [
+            "zg-ear-x1-link",
+            "zg-ear-x1-charge",
+            "zg-ear-x1-play"
+          ]
+        },
+        "rrf_hyde": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 3.247,
+          "top": [
+            "zg-ear-x1-link",
+            "zg-ear-x1-charge",
+            "zg-ear-x1-play"
+          ]
+        }
+      },
+      "rerank_down": {
+        "degraded": true,
+        "hit_at_3": true,
+        "reranker": "degraded_to_rrf"
+      }
+    },
+    {
+      "id": "para-pro-listen",
+      "题型": "改写检索",
+      "purpose": "Pro 的口语续航",
+      "expect_chunk": "zg-ear-x1-pro-play",
+      "strategies": {
+        "sparse": {
+          "hit_at_1": false,
+          "hit_at_3": false,
+          "duration_ms": 2.315,
+          "top": [
+            "zg-ear-x1-pro-anc",
+            "zg-ear-x1-pro-weight"
+          ]
+        },
+        "dense": {
+          "hit_at_1": false,
+          "hit_at_3": true,
+          "duration_ms": 2.443,
+          "top": [
+            "zg-ear-x1-pro-anc",
+            "zg-ear-x1-pro-weight",
+            "zg-ear-x1-pro-play"
+          ]
+        },
+        "rrf": {
+          "hit_at_1": false,
+          "hit_at_3": true,
+          "duration_ms": 3.216,
+          "top": [
+            "zg-ear-x1-pro-anc",
+            "zg-ear-x1-pro-weight",
+            "zg-ear-x1-pro-play"
+          ]
+        },
+        "rrf_hyde": {
+          "hit_at_1": false,
+          "hit_at_3": true,
+          "duration_ms": 2.96,
+          "top": [
+            "zg-ear-x1-pro-anc",
+            "zg-ear-x1-pro-weight",
+            "zg-ear-x1-pro-play"
+          ]
+        }
+      },
+      "rerank_down": {
+        "degraded": true,
+        "hit_at_3": true,
+        "reranker": "degraded_to_rrf"
+      }
+    },
+    {
+      "id": "para-pro-subway",
+      "题型": "改写检索",
+      "purpose": "没有说降噪",
+      "expect_chunk": "zg-ear-x1-pro-anc",
+      "strategies": {
+        "sparse": {
+          "hit_at_1": false,
+          "hit_at_3": false,
+          "duration_ms": 2.249,
+          "top": [
+            "zg-ear-x1-pro-weight"
+          ]
+        },
+        "dense": {
+          "hit_at_1": false,
+          "hit_at_3": true,
+          "duration_ms": 2.608,
+          "top": [
+            "zg-ear-x1-pro-weight",
+            "zg-ear-x1-pro-anc",
+            "zg-ear-x1-pro-play"
+          ]
+        },
+        "rrf": {
+          "hit_at_1": false,
+          "hit_at_3": true,
+          "duration_ms": 3.192,
+          "top": [
+            "zg-ear-x1-pro-weight",
+            "zg-ear-x1-pro-anc",
+            "zg-ear-x1-pro-play"
+          ]
+        },
+        "rrf_hyde": {
+          "hit_at_1": false,
+          "hit_at_3": true,
+          "duration_ms": 2.648,
+          "top": [
+            "zg-ear-x1-pro-weight",
+            "zg-ear-x1-pro-anc",
+            "zg-ear-x1-pro-play"
+          ]
+        }
+      },
+      "rerank_down": {
+        "degraded": true,
+        "hit_at_3": true,
+        "reranker": "degraded_to_rrf"
+      }
+    },
+    {
+      "id": "para-pro-heavier",
+      "题型": "改写检索",
+      "purpose": "没有说克",
+      "expect_chunk": "zg-ear-x1-pro-weight",
+      "strategies": {
+        "sparse": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.398,
+          "top": [
+            "zg-ear-x1-pro-weight"
+          ]
+        },
+        "dense": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.572,
+          "top": [
+            "zg-ear-x1-pro-weight",
+            "zg-ear-x1-pro-anc",
+            "zg-ear-x1-pro-play"
+          ]
+        },
+        "rrf": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.967,
+          "top": [
+            "zg-ear-x1-pro-weight",
+            "zg-ear-x1-pro-anc",
+            "zg-ear-x1-pro-play"
+          ]
+        },
+        "rrf_hyde": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.32,
+          "top": [
+            "zg-ear-x1-pro-weight",
+            "zg-ear-x1-pro-anc",
+            "zg-ear-x1-pro-play"
+          ]
+        }
+      },
+      "rerank_down": {
+        "degraded": true,
+        "hit_at_3": true,
+        "reranker": "degraded_to_rrf"
+      }
+    },
+    {
+      "id": "para-p20-laptop",
+      "题型": "改写检索",
+      "purpose": "问能不能给笔记本充电",
+      "expect_chunk": "zg-power-p20-output",
+      "strategies": {
+        "sparse": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.985,
+          "top": [
+            "zg-power-p20-output"
+          ]
+        },
+        "dense": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.461,
+          "top": [
+            "zg-power-p20-output",
+            "zg-power-p20-capacity"
+          ]
+        },
+        "rrf": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.263,
+          "top": [
+            "zg-power-p20-output",
+            "zg-power-p20-capacity"
+          ]
+        },
+        "rrf_hyde": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.93,
+          "top": [
+            "zg-power-p20-output",
+            "zg-power-p20-capacity"
+          ]
+        }
+      },
+      "rerank_down": {
+        "degraded": true,
+        "hit_at_3": true,
+        "reranker": "degraded_to_rrf"
+      }
+    },
+    {
+      "id": "para-p20-power",
+      "题型": "改写检索",
+      "purpose": "没有说毫安时",
+      "expect_chunk": "zg-power-p20-capacity",
+      "strategies": {
+        "sparse": {
+          "hit_at_1": false,
+          "hit_at_3": false,
+          "duration_ms": 2.583,
+          "top": []
+        },
+        "dense": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.235,
+          "top": [
+            "zg-power-p20-capacity",
+            "zg-power-p20-output"
+          ]
+        },
+        "rrf": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.13,
+          "top": [
+            "zg-power-p20-capacity",
+            "zg-power-p20-output"
+          ]
+        },
+        "rrf_hyde": {
+          "hit_at_1": true,
+          "hit_at_3": true,
+          "duration_ms": 2.243,
+          "top": [
+            "zg-power-p20-capacity",
+            "zg-power-p20-output"
+          ]
+        }
+      },
+      "rerank_down": {
+        "degraded": true,
+        "hit_at_3": true,
+        "reranker": "degraded_to_rrf"
+      }
+    },
+    {
+      "id": "para-p20-watt",
+      "题型": "改写检索",
+      "purpose": "没有说瓦",
+      "expect_chunk": "zg-power-p20-output",
+      "strategies": {
+        "sparse": {
+          "hit_at_1": false,
+          "hit_at_3": false,
+          "duration_ms": 2.113,
+          "top": []
+        },
+        "dense": {
+          "hit_at_1": false,
+          "hit_at_3": true,
+          "duration_ms": 2.129,
+          "top": [
+            "zg-power-p20-capacity",
+            "zg-power-p20-output"
+          ]
+        },
+        "rrf": {
+          "hit_at_1": false,
+          "hit_at_3": true,
+          "duration_ms": 2.153,
+          "top": [
+            "zg-power-p20-capacity",
+            "zg-power-p20-output"
+          ]
+        },
+        "rrf_hyde": {
+          "hit_at_1": false,
+          "hit_at_3": true,
+          "duration_ms": 2.587,
+          "top": [
+            "zg-power-p20-capacity",
+            "zg-power-p20-output"
+          ]
+        }
+      },
+      "rerank_down": {
+        "degraded": true,
+        "hit_at_3": true,
+        "reranker": "degraded_to_rrf"
+      }
+    },
+    {
+      "id": "para-x1-color",
+      "题型": "改写检索",
+      "purpose": "外观改写颜色",
+      "expect_chunk": "zg-ear-x1-weight",
+      "strategies": {
+        "sparse": {
+          "hit_at_1": false,
+          "hit_at_3": false,
+          "duration_ms": 2.376,
+          "top": [
+            "zg-ear-x1-charge"
+          ]
+        },
+        "dense": {
+          "hit_at_1": false,
+          "hit_at_3": true,
+          "duration_ms": 2.471,
+          "top": [
+            "zg-ear-x1-charge",
+            "zg-ear-x1-link",
+            "zg-ear-x1-weight"
+          ]
+        },
+        "rrf": {
+          "hit_at_1": false,
+          "hit_at_3": true,
+          "duration_ms": 2.51,
+          "top": [
+            "zg-ear-x1-charge",
+            "zg-ear-x1-link",
+            "zg-ear-x1-weight"
+          ]
+        },
+        "rrf_hyde": {
+          "hit_at_1": false,
+          "hit_at_3": true,
+          "duration_ms": 2.92,
+          "top": [
+            "zg-ear-x1-charge",
+            "zg-ear-x1-link",
+            "zg-ear-x1-weight"
+          ]
+        }
+      },
+      "rerank_down": {
+        "degraded": true,
+        "hit_at_3": true,
+        "reranker": "degraded_to_rrf"
+      }
+    }
+  ],
+  "drafts": [
+    {
+      "id": "draft-paraphrase",
+      "strategy": "sparse",
+      "policy": "template-draft-conservative",
+      "has_expected": false,
+      "forbidden_hit": false,
+      "bullet_count": 1,
+      "duration_ms": 4.621,
+      "cost": 0
+    },
+    {
+      "id": "draft-paraphrase",
+      "strategy": "sparse",
+      "policy": "template-draft-fuller",
+      "has_expected": false,
+      "forbidden_hit": false,
+      "bullet_count": 1,
+      "duration_ms": 4.814,
+      "cost": 0
+    },
+    {
+      "id": "draft-paraphrase",
+      "strategy": "rrf_hyde",
+      "policy": "template-draft-conservative",
+      "has_expected": true,
+      "forbidden_hit": false,
+      "bullet_count": 3,
+      "duration_ms": 5.148,
+      "cost": 0
+    },
+    {
+      "id": "draft-paraphrase",
+      "strategy": "rrf_hyde",
+      "policy": "template-draft-fuller",
+      "has_expected": true,
+      "forbidden_hit": false,
+      "bullet_count": 3,
+      "duration_ms": 5.068,
+      "cost": 0
+    },
+    {
+      "id": "draft-x1-link",
+      "strategy": "sparse",
+      "policy": "template-draft-conservative",
+      "has_expected": true,
+      "forbidden_hit": false,
+      "bullet_count": 2,
+      "duration_ms": 5.102,
+      "cost": 0
+    },
+    {
+      "id": "draft-x1-link",
+      "strategy": "sparse",
+      "policy": "template-draft-fuller",
+      "has_expected": true,
+      "forbidden_hit": false,
+      "bullet_count": 2,
+      "duration_ms": 4.45,
+      "cost": 0
+    },
+    {
+      "id": "draft-x1-link",
+      "strategy": "rrf_hyde",
+      "policy": "template-draft-conservative",
+      "has_expected": true,
+      "forbidden_hit": false,
+      "bullet_count": 3,
+      "duration_ms": 4.366,
+      "cost": 0
+    },
+    {
+      "id": "draft-x1-link",
+      "strategy": "rrf_hyde",
+      "policy": "template-draft-fuller",
+      "has_expected": true,
+      "forbidden_hit": false,
+      "bullet_count": 3,
+      "duration_ms": 4.384,
+      "cost": 0
+    },
+    {
+      "id": "draft-x1-weight",
+      "strategy": "sparse",
+      "policy": "template-draft-conservative",
+      "has_expected": true,
+      "forbidden_hit": false,
+      "bullet_count": 2,
+      "duration_ms": 4.697,
+      "cost": 0
+    },
+    {
+      "id": "draft-x1-weight",
+      "strategy": "sparse",
+      "policy": "template-draft-fuller",
+      "has_expected": true,
+      "forbidden_hit": false,
+      "bullet_count": 2,
+      "duration_ms": 4.457,
+      "cost": 0
+    },
+    {
+      "id": "draft-x1-weight",
+      "strategy": "rrf_hyde",
+      "policy": "template-draft-conservative",
+      "has_expected": true,
+      "forbidden_hit": false,
+      "bullet_count": 3,
+      "duration_ms": 4.405,
+      "cost": 0
+    },
+    {
+      "id": "draft-x1-weight",
+      "strategy": "rrf_hyde",
+      "policy": "template-draft-fuller",
+      "has_expected": true,
+      "forbidden_hit": false,
+      "bullet_count": 3,
+      "duration_ms": 4.756,
+      "cost": 0
+    },
+    {
+      "id": "draft-pro-anc",
+      "strategy": "sparse",
+      "policy": "template-draft-conservative",
+      "has_expected": true,
+      "forbidden_hit": false,
+      "bullet_count": 2,
+      "duration_ms": 4.58,
+      "cost": 0
+    },
+    {
+      "id": "draft-pro-anc",
+      "strategy": "sparse",
+      "policy": "template-draft-fuller",
+      "has_expected": true,
+      "forbidden_hit": false,
+      "bullet_count": 2,
+      "duration_ms": 4.546,
+      "cost": 0
+    },
+    {
+      "id": "draft-pro-anc",
+      "strategy": "rrf_hyde",
+      "policy": "template-draft-conservative",
+      "has_expected": true,
+      "forbidden_hit": false,
+      "bullet_count": 3,
+      "duration_ms": 4.917,
+      "cost": 0
+    },
+    {
+      "id": "draft-pro-anc",
+      "strategy": "rrf_hyde",
+      "policy": "template-draft-fuller",
+      "has_expected": true,
+      "forbidden_hit": false,
+      "bullet_count": 3,
+      "duration_ms": 5.352,
+      "cost": 0
+    },
+    {
+      "id": "draft-pro-play",
+      "strategy": "sparse",
+      "policy": "template-draft-conservative",
+      "has_expected": false,
+      "forbidden_hit": false,
+      "bullet_count": 2,
+      "duration_ms": 4.713,
+      "cost": 0
+    },
+    {
+      "id": "draft-pro-play",
+      "strategy": "sparse",
+      "policy": "template-draft-fuller",
+      "has_expected": false,
+      "forbidden_hit": false,
+      "bullet_count": 2,
+      "duration_ms": 4.82,
+      "cost": 0
+    },
+    {
+      "id": "draft-pro-play",
+      "strategy": "rrf_hyde",
+      "policy": "template-draft-conservative",
+      "has_expected": true,
+      "forbidden_hit": false,
+      "bullet_count": 3,
+      "duration_ms": 5.102,
+      "cost": 0
+    },
+    {
+      "id": "draft-pro-play",
+      "strategy": "rrf_hyde",
+      "policy": "template-draft-fuller",
+      "has_expected": true,
+      "forbidden_hit": false,
+      "bullet_count": 3,
+      "duration_ms": 5.031,
+      "cost": 0
+    },
+    {
+      "id": "draft-p20-out",
+      "strategy": "sparse",
+      "policy": "template-draft-conservative",
+      "has_expected": true,
+      "forbidden_hit": false,
+      "bullet_count": 1,
+      "duration_ms": 4.063,
+      "cost": 0
+    },
+    {
+      "id": "draft-p20-out",
+      "strategy": "sparse",
+      "policy": "template-draft-fuller",
+      "has_expected": true,
+      "forbidden_hit": false,
+      "bullet_count": 1,
+      "duration_ms": 4.321,
+      "cost": 0
+    },
+    {
+      "id": "draft-p20-out",
+      "strategy": "rrf_hyde",
+      "policy": "template-draft-conservative",
+      "has_expected": true,
+      "forbidden_hit": false,
+      "bullet_count": 2,
+      "duration_ms": 4.199,
+      "cost": 0
+    },
+    {
+      "id": "draft-p20-out",
+      "strategy": "rrf_hyde",
+      "policy": "template-draft-fuller",
+      "has_expected": true,
+      "forbidden_hit": false,
+      "bullet_count": 2,
+      "duration_ms": 4.085,
+      "cost": 0
+    },
+    {
+      "id": "draft-p20-cap",
+      "strategy": "sparse",
+      "policy": "template-draft-conservative",
+      "has_expected": true,
+      "forbidden_hit": false,
+      "bullet_count": 1,
+      "duration_ms": 4.698,
+      "cost": 0
+    },
+    {
+      "id": "draft-p20-cap",
+      "strategy": "sparse",
+      "policy": "template-draft-fuller",
+      "has_expected": true,
+      "forbidden_hit": false,
+      "bullet_count": 1,
+      "duration_ms": 4.341,
+      "cost": 0
+    },
+    {
+      "id": "draft-p20-cap",
+      "strategy": "rrf_hyde",
+      "policy": "template-draft-conservative",
+      "has_expected": true,
+      "forbidden_hit": false,
+      "bullet_count": 2,
+      "duration_ms": 4.127,
+      "cost": 0
+    },
+    {
+      "id": "draft-p20-cap",
+      "strategy": "rrf_hyde",
+      "policy": "template-draft-fuller",
+      "has_expected": true,
+      "forbidden_hit": false,
+      "bullet_count": 2,
+      "duration_ms": 4.108,
+      "cost": 0
+    }
+  ],
+  "workflow": [
+    {
+      "id": "ambiguous-family",
+      "题型": "型号歧义",
+      "pass": true,
+      "sku": "",
+      "status": "ambiguous"
+    },
+    {
+      "id": "missing-product",
+      "题型": "无资料",
+      "pass": true,
+      "sku": "",
+      "status": "insufficient"
+    },
+    {
+      "id": "pronoun-followup",
+      "题型": "指代续问",
+      "pass": true,
+      "sku": "zg-ear-x1-pro",
+      "status": "awaiting_confirmation"
+    },
+    {
+      "id": "ambiguous-color",
+      "题型": "型号歧义",
+      "pass": true,
+      "sku": "",
+      "status": "ambiguous"
+    },
+    {
+      "id": "missing-lamp",
+      "题型": "无资料",
+      "pass": true,
+      "sku": "",
+      "status": "insufficient"
+    },
+    {
+      "id": "missing-watch",
+      "题型": "无资料",
+      "pass": true,
+      "sku": "",
+      "status": "insufficient"
+    },
+    {
+      "id": "pronoun-p20",
+      "题型": "指代续问",
+      "pass": true,
+      "sku": "zg-power-p20",
+      "status": "awaiting_confirmation"
+    },
+    {
+      "id": "pronoun-x1",
+      "题型": "指代续问",
+      "pass": true,
+      "sku": "zg-ear-x1",
+      "status": "awaiting_confirmation"
+    },
+    {
+      "id": "ambiguous-brand",
+      "题型": "型号歧义",
+      "pass": true,
+      "sku": "",
+      "status": "ambiguous"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+    "cost": 0
+  },
+  "baseline": {
+    "retrieval": [
+      {
+        "题型": "关键词检索",
+        "条数": 8,
+        "关键词 hit@1": "8/8",
+        "关键词 hit@3": "8/8",
+        "稠密 hit@1": "8/8",
+        "稠密 hit@3": "8/8",
+        "RRF hit@1": "8/8",
+        "RRF hit@3": "8/8",
+        "RRF+HyDE hit@1": "8/8",
+        "RRF+HyDE hit@3": "8/8"
+      },
+      {
+        "题型": "改写检索",
+        "条数": 13,
+        "关键词 hit@1": "4/13",
+        "关键词 hit@3": "5/13",
+        "稠密 hit@1": "5/13",
+        "稠密 hit@3": "12/13",
+        "RRF hit@1": "5/13",
+        "RRF hit@3": "12/13",
+        "RRF+HyDE hit@1": "5/13",
+        "RRF+HyDE hit@3": "13/13"
+      },
+      {
+        "题型": "型号区分",
+        "条数": 1,
+        "关键词 hit@1": "1/1",
+        "关键词 hit@3": "1/1",
+        "稠密 hit@1": "1/1",
+        "稠密 hit@3": "1/1",
+        "RRF hit@1": "1/1",
+        "RRF hit@3": "1/1",
+        "RRF+HyDE hit@1": "1/1",
+        "RRF+HyDE hit@3": "1/1"
+      },
+      {
+        "题型": "检索合计",
+        "条数": 22,
+        "关键词 hit@1": "13/22",
+        "关键词 hit@3": "14/22",
+        "稠密 hit@1": "14/22",
+        "稠密 hit@3": "21/22",
+        "RRF hit@1": "14/22",
+        "RRF hit@3": "21/22",
+        "RRF+HyDE hit@1": "14/22",
+        "RRF+HyDE hit@3": "22/22"
+      }
+    ],
+    "draft_conservative": {
+      "条数": 14,
+      "写出标准要点": "12/14",
+      "写出禁用说法": "0/14",
+      "费用": 0
+    },
+    "workflow": {
+      "条数": 9,
+      "通过": "9/9"
+    }
+  },
+  "completion": {
+    "population": "frozen draft+workflow",
+    "point_min": 1,
+    "total": 16,
+    "criteria": [
+      "型号对",
+      "证据命中标准位置",
+      "草稿含标准要点至少 1 条",
+      "禁语 0",
+      "流程题的确认路径正确"
+    ],
+    "before": "11/16",
+    "before_percent": 68.8,
+    "before_label": "关键词检索，无确认门，无规则校验",
+    "after": "16/16",
+    "after_percent": 100.0,
+    "after_label": "当前默认链路：RRF+HyDE、确认、规则、重排序可降级",
+    "tasks": {
+      "before": [
+        {
+          "id": "draft-paraphrase",
+          "kind": "draft",
+          "题型": "草稿要点",
+          "success": false,
+          "checks": {
+            "型号对": true,
+            "证据命中": false,
+            "要点": false,
+            "禁语": true
+          },
+          "status": "written",
+          "sku": "zg-ear-x1"
+        },
+        {
+          "id": "draft-x1-link",
+          "kind": "draft",
+          "题型": "草稿要点",
+          "success": true,
+          "checks": {
+            "型号对": true,
+            "证据命中": true,
+            "要点": true,
+            "禁语": true
+          },
+          "status": "written",
+          "sku": "zg-ear-x1"
+        },
+        {
+          "id": "draft-x1-weight",
+          "kind": "draft",
+          "题型": "草稿要点",
+          "success": true,
+          "checks": {
+            "型号对": true,
+            "证据命中": true,
+            "要点": true,
+            "禁语": true
+          },
+          "status": "written",
+          "sku": "zg-ear-x1"
+        },
+        {
+          "id": "draft-pro-anc",
+          "kind": "draft",
+          "题型": "草稿要点",
+          "success": true,
+          "checks": {
+            "型号对": true,
+            "证据命中": true,
+            "要点": true,
+            "禁语": true
+          },
+          "status": "written",
+          "sku": "zg-ear-x1-pro"
+        },
+        {
+          "id": "draft-pro-play",
+          "kind": "draft",
+          "题型": "草稿要点",
+          "success": false,
+          "checks": {
+            "型号对": true,
+            "证据命中": false,
+            "要点": false,
+            "禁语": true
+          },
+          "status": "written",
+          "sku": "zg-ear-x1-pro"
+        },
+        {
+          "id": "draft-p20-out",
+          "kind": "draft",
+          "题型": "草稿要点",
+          "success": true,
+          "checks": {
+            "型号对": true,
+            "证据命中": true,
+            "要点": true,
+            "禁语": true
+          },
+          "status": "written",
+          "sku": "zg-power-p20"
+        },
+        {
+          "id": "draft-p20-cap",
+          "kind": "draft",
+          "题型": "草稿要点",
+          "success": true,
+          "checks": {
+            "型号对": true,
+            "证据命中": true,
+            "要点": true,
+            "禁语": true
+          },
+          "status": "written",
+          "sku": "zg-power-p20"
+        },
+        {
+          "id": "ambiguous-family",
+          "kind": "workflow",
+          "题型": "型号歧义",
+          "success": true,
+          "checks": {
+            "型号对": true,
+            "证据命中": true,
+            "要点": true,
+            "禁语": true,
+            "路径": true
+          },
+          "status": "ambiguous",
+          "sku": ""
+        },
+        {
+          "id": "missing-product",
+          "kind": "workflow",
+          "题型": "无资料",
+          "success": true,
+          "checks": {
+            "型号对": true,
+            "证据命中": true,
+            "要点": true,
+            "禁语": true,
+            "路径": true
+          },
+          "status": "insufficient",
+          "sku": ""
+        },
+        {
+          "id": "pronoun-followup",
+          "kind": "workflow",
+          "题型": "指代续问",
+          "success": false,
+          "checks": {
+            "型号对": true,
+            "证据命中": true,
+            "要点": true,
+            "禁语": true,
+            "路径": false
+          },
+          "status": "written",
+          "sku": "zg-ear-x1-pro"
+        },
+        {
+          "id": "ambiguous-color",
+          "kind": "workflow",
+          "题型": "型号歧义",
+          "success": true,
+          "checks": {
+            "型号对": true,
+            "证据命中": true,
+            "要点": true,
+            "禁语": true,
+            "路径": true
+          },
+          "status": "ambiguous",
+          "sku": ""
+        },
+        {
+          "id": "missing-lamp",
+          "kind": "workflow",
+          "题型": "无资料",
+          "success": true,
+          "checks": {
+            "型号对": true,
+            "证据命中": true,
+            "要点": true,
+            "禁语": true,
+            "路径": true
+          },
+          "status": "insufficient",
+          "sku": ""
+        },
+        {
+          "id": "missing-watch",
+          "kind": "workflow",
+          "题型": "无资料",
+          "success": true,
+          "checks": {
+            "型号对": true,
+            "证据命中": true,
+            "要点": true,
+            "禁语": true,
+            "路径": true
+          },
+          "status": "insufficient",
+          "sku": ""
+        },
+        {
+          "id": "pronoun-p20",
+          "kind": "workflow",
+          "题型": "指代续问",
+          "success": false,
+          "checks": {
+            "型号对": true,
+            "证据命中": true,
+            "要点": true,
+            "禁语": true,
+            "路径": false
+          },
+          "status": "written",
+          "sku": "zg-power-p20"
+        },
+        {
+          "id": "pronoun-x1",
+          "kind": "workflow",
+          "题型": "指代续问",
+          "success": false,
+          "checks": {
+            "型号对": true,
+            "证据命中": true,
+            "要点": true,
+            "禁语": true,
+            "路径": false
+          },
+          "status": "written",
+          "sku": "zg-ear-x1"
+        },
+        {
+          "id": "ambiguous-brand",
+          "kind": "workflow",
+          "题型": "型号歧义",
+          "success": true,
+          "checks": {
+            "型号对": true,
+            "证据命中": true,
+            "要点": true,
+            "禁语": true,
+            "路径": true
+          },
+          "status": "ambiguous",
+          "sku": ""
+        }
+      ],
+      "after": [
+        {
+          "id": "draft-paraphrase",
+          "kind": "draft",
+          "题型": "草稿要点",
+          "success": true,
+          "checks": {
+            "型号对": true,
+            "证据命中": true,
+            "要点": true,
+            "禁语": true
+          },
+          "status": "written",
+          "sku": "zg-ear-x1"
+        },
+        {
+          "id": "draft-x1-link",
+          "kind": "draft",
+          "题型": "草稿要点",
+          "success": true,
+          "checks": {
+            "型号对": true,
+            "证据命中": true,
+            "要点": true,
+            "禁语": true
+          },
+          "status": "written",
+          "sku": "zg-ear-x1"
+        },
+        {
+          "id": "draft-x1-weight",
+          "kind": "draft",
+          "题型": "草稿要点",
+          "success": true,
+          "checks": {
+            "型号对": true,
+            "证据命中": true,
+            "要点": true,
+            "禁语": true
+          },
+          "status": "written",
+          "sku": "zg-ear-x1"
+        },
+        {
+          "id": "draft-pro-anc",
+          "kind": "draft",
+          "题型": "草稿要点",
+          "success": true,
+          "checks": {
+            "型号对": true,
+            "证据命中": true,
+            "要点": true,
+            "禁语": true
+          },
+          "status": "written",
+          "sku": "zg-ear-x1-pro"
+        },
+        {
+          "id": "draft-pro-play",
+          "kind": "draft",
+          "题型": "草稿要点",
+          "success": true,
+          "checks": {
+            "型号对": true,
+            "证据命中": true,
+            "要点": true,
+            "禁语": true
+          },
+          "status": "written",
+          "sku": "zg-ear-x1-pro"
+        },
+        {
+          "id": "draft-p20-out",
+          "kind": "draft",
+          "题型": "草稿要点",
+          "success": true,
+          "checks": {
+            "型号对": true,
+            "证据命中": true,
+            "要点": true,
+            "禁语": true
+          },
+          "status": "written",
+          "sku": "zg-power-p20"
+        },
+        {
+          "id": "draft-p20-cap",
+          "kind": "draft",
+          "题型": "草稿要点",
+          "success": true,
+          "checks": {
+            "型号对": true,
+            "证据命中": true,
+            "要点": true,
+            "禁语": true
+          },
+          "status": "written",
+          "sku": "zg-power-p20"
+        },
+        {
+          "id": "ambiguous-family",
+          "kind": "workflow",
+          "题型": "型号歧义",
+          "success": true,
+          "checks": {
+            "型号对": true,
+            "证据命中": true,
+            "要点": true,
+            "禁语": true,
+            "路径": true
+          },
+          "status": "ambiguous",
+          "sku": ""
+        },
+        {
+          "id": "missing-product",
+          "kind": "workflow",
+          "题型": "无资料",
+          "success": true,
+          "checks": {
+            "型号对": true,
+            "证据命中": true,
+            "要点": true,
+            "禁语": true,
+            "路径": true
+          },
+          "status": "insufficient",
+          "sku": ""
+        },
+        {
+          "id": "pronoun-followup",
+          "kind": "workflow",
+          "题型": "指代续问",
+          "success": true,
+          "checks": {
+            "型号对": true,
+            "证据命中": true,
+            "要点": true,
+            "禁语": true,
+            "路径": true
+          },
+          "status": "written",
+          "sku": "zg-ear-x1-pro"
+        },
+        {
+          "id": "ambiguous-color",
+          "kind": "workflow",
+          "题型": "型号歧义",
+          "success": true,
+          "checks": {
+            "型号对": true,
+            "证据命中": true,
+            "要点": true,
+            "禁语": true,
+            "路径": true
+          },
+          "status": "ambiguous",
+          "sku": ""
+        },
+        {
+          "id": "missing-lamp",
+          "kind": "workflow",
+          "题型": "无资料",
+          "success": true,
+          "checks": {
+            "型号对": true,
+            "证据命中": true,
+            "要点": true,
+            "禁语": true,
+            "路径": true
+          },
+          "status": "insufficient",
+          "sku": ""
+        },
+        {
+          "id": "missing-watch",
+          "kind": "workflow",
+          "题型": "无资料",
+          "success": true,
+          "checks": {
+            "型号对": true,
+            "证据命中": true,
+            "要点": true,
+            "禁语": true,
+            "路径": true
+          },
+          "status": "insufficient",
+          "sku": ""
+        },
+        {
+          "id": "pronoun-p20",
+          "kind": "workflow",
+          "题型": "指代续问",
+          "success": true,
+          "checks": {
+            "型号对": true,
+            "证据命中": true,
+            "要点": true,
+            "禁语": true,
+            "路径": true
+          },
+          "status": "written",
+          "sku": "zg-power-p20"
+        },
+        {
+          "id": "pronoun-x1",
+          "kind": "workflow",
+          "题型": "指代续问",
+          "success": true,
+          "checks": {
+            "型号对": true,
+            "证据命中": true,
+            "要点": true,
+            "禁语": true,
+            "路径": true
+          },
+          "status": "written",
+          "sku": "zg-ear-x1"
+        },
+        {
+          "id": "ambiguous-brand",
+          "kind": "workflow",
+          "题型": "型号歧义",
+          "success": true,
+          "checks": {
+            "型号对": true,
+            "证据命中": true,
+            "要点": true,
+            "禁语": true,
+            "路径": true
+          },
+          "status": "ambiguous",
+          "sku": ""
+        }
+      ]
+    }
+  },
+  "conclusion": "在这条把「能听多久」换成口语的问法上，关键词召回没有找回「连续播放 30 小时」，RRF 加上模板 HyDE 之后找回了。重排序被关掉时，结果退回 RRF，并在记录里标明降级。两种草稿器费用都是 0，因为没有调用付费模型。"
+}

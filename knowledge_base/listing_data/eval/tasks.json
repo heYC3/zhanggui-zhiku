@@ -1,0 +1,18 @@
+{
+  "frozen_on": "2026-11-05",
+  "corpus": "listing_data/products 自编 3 个商品，synthetic，不是在售商品",
+  "fields": [
+    "问题",
+    "标准要点",
+    "证据位置",
+    "题型"
+  ],
+  "note": "开发集和冻结测集已拆开。对外基线只跑 frozen_test.json。",
+  "dev": "dev.json",
+  "frozen_test": "frozen_test.json",
+  "counts": {
+    "dev": 62,
+    "frozen_test": 38,
+    "total": 100
+  }
+}
