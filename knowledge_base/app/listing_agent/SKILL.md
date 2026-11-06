@@ -13,7 +13,11 @@ description: 检查或检索掌柜智库 Listing 草稿时使用。调用本项�
 python -m app.listing_agent.mcp_server
 ```
 
-工作目录是 `knowledge_base`。
+工作目录是 `knowledge_base`。官方 Python SDK 2.3.0 的 stdio 客户端按逐行 JSON 连接这一进程。可以用下面的命令留下一份调用记录：
+
+```powershell
+python -m app.listing_agent.mcp_probe
+```
 
 ## 工具
 

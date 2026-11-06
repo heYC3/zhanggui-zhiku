@@ -35,7 +35,7 @@ knowledge_base/
 cd knowledge_base
 pip install -r requirements-listing.txt
 python -m app.listing_agent.eval
-python -m unittest test.listing.test_listing_loop -v
+python -m unittest discover -s test/listing -v
 python -m app.listing_agent
 ```
 
@@ -153,8 +153,8 @@ Before 没过的 5 条里，2 条是改写问法没有找回目标证据，3 条
 
 1. 确认型号。两个耳机都对得上时，先问你，不写草稿。
 2. 从 `listing_data/products` 找证据。
-3. 只用证据里的原句拼标题和要点。资料没写的，例如防水，会空出来。
-4. 等你点确认、拒绝或取消。确认才写入。
+3. 草稿来源可以选。`offline` 用证据原句拼标题和要点，不调用模型。`llm` 把同一份证据交给真实模型，模型只能填写标题、要点和缺口，输出先过 JSON Schema。资料没写的，例如防水，不会补进标题和要点。默认先走百炼的 `qwen-plus`，走不通再改 OpenAI 的 `gpt-6.1-terra`。两家都走不通，就用知识库里的原句。
+4. 规则检查通过后，等你点确认、拒绝或取消。确认才写入。原句、换一家模型、改用知识库，都是这样。
 5. 如果写入没有返回成功或失败，页面会让你核对，不会自动再写一遍。
 
 | 地址 | 作用 | 你要交的内容 | 返回 |
@@ -172,13 +172,22 @@ Before 没过的 5 条里，2 条是改写问法没有找回目标证据，3 条
 
 查看身份不能确认写入。草稿版本不对也不能写入。
 
-规则校验可以单独当 MCP 用，工作目录在 `knowledge_base`：
+规则校验可以单独当 MCP 用。服务按官方 Python SDK 2.3.0 的 stdio 收发，一行一条 JSON。工作目录在 `knowledge_base`：
 
 ```powershell
 python -m app.listing_agent.mcp_server
+python -m app.listing_agent.mcp_probe
 ```
 
-说明在 `app/listing_agent/SKILL.md`。这个工具只查证据和检查草稿，不直接写入。
+第二条会用官方客户端做初始化、列出工具、调用和参数错误检查，并把记录写到 `listing_data/reports/mcp_client_record.json`。说明在 `app/listing_agent/SKILL.md`。工具只有查证据和检查草稿，不直接写入。
+
+真实模型和原句模板的对照不进冻结基线。配好模型密钥后另跑：
+
+```powershell
+python -m app.listing_agent.llm_compare
+```
+
+对照表在 `listing_data/reports/llm_compare.md`，每次调用的模型名、参数、提示版本、token、耗时和失败类型在 `llm_draft_telemetry.jsonl`。接口没返回用量时，这些数是空的，不会写成 0。
 
 `LISTING_USE_BGE=1` 才会加载 BGE-M3，失败就退回离线字块。Langfuse 三项都填了，任务记录才会发到云端；不填只写 `listing_data/runtime/traces.jsonl`。
 
@@ -188,7 +197,7 @@ Listing 容器在 `deploy/Dockerfile.listing`：
 docker compose -f deploy/docker-compose.listing.yml up --build
 ```
 
-还没做的事：没有连接真实店铺；台账和检查点是 SQLite，没有另加 PostgreSQL；默认草稿不调用付费模型；页面是一个 HTML；仓库里没有附带已经构建好的镜像。
+还没做的事：没有连接真实店铺；台账和检查点是 SQLite，没有另加 PostgreSQL；默认草稿仍是原句模板，不调用付费模型；页面是一个 HTML；仓库里没有附带已经构建好的镜像。
 
 ## 配置
 
@@ -207,6 +216,12 @@ docker compose -f deploy/docker-compose.listing.yml up --build
 | `BGE_M3` / `BGE_M3_PATH` / `BGE_DEVICE` | 向量模型。`BGE_M3_PATH` 留空则按模型名下载 |
 | `TEXT_RERANK_MODEL` | 默认 `qwen3-rerank` |
 | `LISTING_USE_BGE` | Listing 默认 `0`，不加载 BGE-M3 |
+| `LISTING_DRAFT_MODE` | `offline` 用原句模板；`llm` 才调用文本模型。页面上也可以切换 |
+| `LISTING_LLM_PROVIDER` | 默认 `bailian`。失败再换另一家，两家都失败用知识库原句 |
+| `LISTING_BAILIAN_MODEL` | 百炼草稿模型，默认 `qwen-plus`。同一条草稿上比 `qwen3.8-flash` 快。`qwen3-rerank` 只做问答重排序 |
+| `LISTING_OPENAI_MODEL` | 百炼失败后改用的 OpenAI 模型，默认 `gpt-6.1-terra`。问答仍用 `LLM_DEFAULT_MODEL` |
+| `LISTING_LLM_TIMEOUT_S` | 真实模型草稿的超时秒数 |
+| `LISTING_LLM_USD_PER_MILLION_PROMPT` / `LISTING_LLM_USD_PER_MILLION_COMPLETION` | 两项都有，才用 token 算费用。缺了就留空 |
 
 ## 许可
 

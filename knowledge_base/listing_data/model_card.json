@@ -11,5 +11,9 @@
   "reranker": "local-term-overlap",
   "reranker_note": "用问句和证据的共同词重排。服务不可用时保留 RRF 顺序，并在回执里标明已降级。问答链路上的 qwen3-rerank 不在这条 Listing 链路里。",
   "fusion": "RRF k=60",
-  "chat_model_live": "未接入。配置 LISTING_COMPARE_MODELS 之前，不会把同一任务集发给真实主模型，也就没有 token 费用。"
+  "chat_model_live": "未接入。配置 LISTING_COMPARE_MODELS 之前，不会把同一任务集发给真实主模型，也就没有 token 费用。",
+  "draft_modes": ["offline", "llm"],
+  "draft_mode_default": "offline",
+  "llm_prompt_version": "listing-draft-v1",
+  "llm_note": "LISTING_DRAFT_MODE=llm 或页面选择真实模型时，才调用 OpenAI 兼容接口。用量以接口返回为准；没返回的字段留空，不记成 0。规则通过后仍等待人工确认。"
 }

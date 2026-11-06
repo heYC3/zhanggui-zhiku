@@ -30,6 +30,7 @@ _TERMINAL = {
     "failed",
     "confirm_rejected",
     "write_unknown",
+    "draft_failed",
 }
 
 
@@ -80,6 +81,7 @@ class StartBody(BaseModel):
     idempotency_key: str | None = None
     rerank_mode: str = "on"
     inject_write_unknown: bool = False
+    draft_mode: str | None = None
 
 
 class DecisionBody(BaseModel):
@@ -149,6 +151,7 @@ async def start_task(body: StartBody, request: Request):
         idempotency_key=body.idempotency_key,
         rerank_mode=body.rerank_mode if test_mode() else "on",
         inject_write_unknown=bool(body.inject_write_unknown) and test_mode(),
+        draft_mode=body.draft_mode,
     )
 
 

@@ -14,6 +14,7 @@ from langgraph.types import Command
 from app.listing_agent.catalog import display_name, get_product
 from app.listing_agent.checkpoints import CheckpointStore
 from app.listing_agent.ledger import IdempotencyConflict, Ledger
+from app.listing_agent.llm_draft import append_telemetry, resolve_draft_mode
 from app.listing_agent.paths import runtime_dir
 from app.listing_agent.rules import Actor, validate_listing_draft
 from app.listing_agent.trace import write_trace
@@ -21,6 +22,32 @@ from app.listing_agent.workflow import build_graph
 
 
 logger = logging.getLogger("listing_agent.service")
+
+
+def _trace_usage(telemetry: dict) -> tuple[dict, str]:
+    """离线路径的 0 表示没有调用模型。模型路径缺用量时保持 null。"""
+    if telemetry.get("mode") != "llm":
+        return (
+            {
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "cost": 0,
+                "usage_known": True,
+                "usage_source": "not_called",
+            },
+            "默认草稿器不调用付费模型，用量和费用记 0。",
+        )
+    return (
+        {
+            "prompt_tokens": telemetry.get("prompt_tokens"),
+            "completion_tokens": telemetry.get("completion_tokens"),
+            "total_tokens": telemetry.get("total_tokens"),
+            "cost": telemetry.get("cost"),
+            "usage_known": telemetry.get("usage_known"),
+            "usage_source": telemetry.get("usage_source"),
+        },
+        telemetry.get("usage_note") or "",
+    )
 
 
 class ListingError(Exception):
@@ -40,12 +67,19 @@ def _now() -> str:
 
 
 class ListingService:
-    def __init__(self, runtime: Path | None = None):
+    def __init__(self, runtime: Path | None = None, llm_client=None, llm_clients=None):
         self.runtime = Path(runtime or runtime_dir())
         self.runtime.mkdir(parents=True, exist_ok=True)
+        self.llm_client = llm_client
+        self.llm_clients = llm_clients
         self.ledger = Ledger(self.runtime / "ledger.sqlite3")
         self.checkpoints = CheckpointStore(self.runtime / "checkpoints.pkl")
-        self.graph = build_graph(self.checkpoints.saver, self.ledger)
+        self.graph = build_graph(
+            self.checkpoints.saver,
+            self.ledger,
+            llm_client=llm_client,
+            llm_clients=llm_clients,
+        )
 
     def close(self) -> None:
         if getattr(self, "_closed", False):
@@ -67,12 +101,17 @@ class ListingService:
         skip_confirmation: bool = False,
         skip_rules: bool = False,
         org_id: str = "",
+        draft_mode: str | None = None,
     ) -> dict:
         query = (query or "").strip()
         if not query:
             raise ListingError("先写你要做的商品和平台")
         if role not in {"editor", "viewer"}:
             raise ListingError("身份只能是编辑或查看")
+        try:
+            mode = resolve_draft_mode(draft_mode)
+        except ValueError as exc:
+            raise ListingError(str(exc)) from exc
         org_id = org_id or ""
         task_id = uuid.uuid4().hex
         if session_id:
@@ -95,7 +134,12 @@ class ListingService:
         if idempotency_key:
             digest = hashlib.sha256(
                 json.dumps(
-                    {"query": query, "platform": platform, "session_id": session_id or ""},
+                    {
+                        "query": query,
+                        "platform": platform,
+                        "session_id": session_id or "",
+                        "draft_mode": mode,
+                    },
                     ensure_ascii=False,
                     sort_keys=True,
                 ).encode("utf-8")
@@ -126,6 +170,7 @@ class ListingService:
                 "strategy": strategy,
                 "rerank_mode": rerank_mode,
                 "draft_policy": "template-draft-conservative",
+                "draft_mode": mode,
                 "inject_write_unknown": bool(inject_write_unknown),
                 "skip_confirmation": bool(skip_confirmation),
                 "skip_rules": bool(skip_rules),
@@ -422,7 +467,19 @@ class ListingService:
                         "name": "generate_draft",
                         "label": "草稿生成",
                         "phase": "end",
-                        "detail": draft.get("policy") or "",
+                        "detail": draft.get("fallback_note") or draft.get("policy") or "",
+                    },
+                )
+            )
+        elif values.get("status") == "draft_failed":
+            events.append(
+                (
+                    "node",
+                    {
+                        "name": "generate_draft",
+                        "label": "草稿生成",
+                        "phase": "end",
+                        "detail": values.get("clarify_question") or "草稿没有生成",
                     },
                 )
             )
@@ -447,6 +504,7 @@ class ListingService:
                         "name": "wait_human",
                         "label": "等待确认",
                         "phase": "pause",
+                        "detail": "点页面上的「确认写入」才会进台账",
                         "version": values.get("draft_version") or 0,
                     },
                 )
@@ -491,6 +549,8 @@ class ListingService:
         row = self.ledger.get_task_row(task_id) or {}
         retrieval = values.get("retrieval") or {}
         draft = values.get("draft") or {}
+        telemetry = values.get("draft_telemetry") or {}
+        usage, usage_note = _trace_usage(telemetry)
         record = {
             "trace_id": task_id,
             "ended_at": _now(),
@@ -501,16 +561,27 @@ class ListingService:
             "strategy": retrieval.get("strategy", ""),
             "embedding": retrieval.get("embedding", ""),
             "reranker": retrieval.get("reranker", ""),
-            "draft_policy": draft.get("policy", ""),
+            "draft_policy": draft.get("policy", "") or telemetry.get("mode", ""),
+            "draft_mode": telemetry.get("mode", ""),
+            "model": telemetry.get("model"),
+            "model_name_source": telemetry.get("model_name_source"),
+            "parameters": telemetry.get("parameters"),
+            "prompt_version": telemetry.get("prompt_version"),
+            "failure_type": telemetry.get("failure_type"),
             "spans": [
                 {"name": "retrieve_evidence", "duration_ms": retrieval.get("duration_ms", 0)},
-                {"name": "generate_draft", "duration_ms": draft.get("duration_ms", 0)},
+                {
+                    "name": "generate_draft",
+                    "duration_ms": telemetry.get("duration_ms", draft.get("duration_ms", 0)),
+                },
             ],
-            "usage": {"prompt_tokens": 0, "completion_tokens": 0, "cost": 0},
-            "usage_note": "默认草稿器不调用付费模型，用量和费用记 0。",
+            "usage": usage,
+            "usage_note": usage_note,
         }
         try:
             write_trace(self.runtime, record)
+            if telemetry:
+                append_telemetry(self.runtime, {"trace_id": task_id, **telemetry})
         except Exception:
             logger.exception("trace 写入失败，task_id=%s", task_id)
 

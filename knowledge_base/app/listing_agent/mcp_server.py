@@ -1,49 +1,26 @@
 """把规则校验和资料检索做成 MCP 工具。
 
-网页确认写入仍然走 Listing 服务，不从这里直接写台账。
-操作说明见同目录 SKILL.md。日志只打到 stderr，避免弄乱 MCP 的标准输出。
+传输使用官方 Python SDK 的 stdio：一行一条 JSON，不使用 Content-Length 帧。
+网页确认写入仍然走 Listing 服务，这里不提供写台账的工具。
+日志只打到 stderr，避免弄乱标准输出上的协议。
 """
 
 from __future__ import annotations
 
 import json
-import sys
+import logging
+from typing import Literal
+
+from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver.exceptions import ToolError
 
 from app.listing_agent.retrieve import search_evidence
 from app.listing_agent.rules import Actor, validate_listing_draft
 
 
-_TOOLS = [
-    {
-        "name": "lookup_product_evidence",
-        "description": "从自编商品资料里查证据。需要操作者身份。不会写入 Listing。",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "query": {"type": "string"},
-                "sku": {"type": "string"},
-                "strategy": {"type": "string", "enum": ["sparse", "dense", "rrf", "rrf_hyde"]},
-                "actor_id": {"type": "string"},
-                "role": {"type": "string", "enum": ["editor", "viewer"]},
-            },
-            "required": ["query", "actor_id", "role"],
-        },
-    },
-    {
-        "name": "validate_listing_draft",
-        "description": "用和网页确认相同的规则检查一份 Listing 草稿。",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "draft": {"type": "object"},
-                "platform": {"type": "string"},
-                "actor_id": {"type": "string"},
-                "role": {"type": "string", "enum": ["editor", "viewer"]},
-            },
-            "required": ["draft", "platform", "actor_id", "role"],
-        },
-    },
-]
+logger = logging.getLogger("listing_agent.mcp")
+
+_STRATEGIES = ("sparse", "dense", "rrf", "rrf_hyde")
 
 
 def _tool_result(payload: dict, is_error: bool = False) -> dict:
@@ -54,21 +31,20 @@ def _tool_result(payload: dict, is_error: bool = False) -> dict:
 
 
 def call_tool(name: str, arguments: dict) -> dict:
+    """供测试和官方 SDK 工具共用。不写入台账。"""
     try:
         actor = Actor(arguments.get("actor_id", ""), arguments.get("role", ""))
         if name == "lookup_product_evidence":
             actor.require(("editor", "viewer"))
+            strategy = arguments.get("strategy") or "rrf_hyde"
+            if strategy not in _STRATEGIES:
+                return _tool_result({"message": "检索策略不在允许的范围内"}, is_error=True)
             result = search_evidence(
                 arguments.get("query") or "",
                 sku=arguments.get("sku") or None,
-                strategy=arguments.get("strategy") or "rrf_hyde",
+                strategy=strategy,
             )
-            return _tool_result(
-                {
-                    "evidence": result["evidence"],
-                    "meta": result["meta"],
-                }
-            )
+            return _tool_result({"evidence": result["evidence"], "meta": result["meta"]})
         if name == "validate_listing_draft":
             validation = validate_listing_draft(
                 arguments.get("draft") or {},
@@ -80,70 +56,80 @@ def call_tool(name: str, arguments: dict) -> dict:
     except PermissionError as exc:
         return _tool_result({"message": str(exc)}, is_error=True)
     except Exception as exc:  # 把工具错误交回调用方，不把协议连接弄断
+        logger.exception("MCP 工具执行失败")
         return _tool_result({"message": str(exc)}, is_error=True)
 
 
-def handle(message: dict) -> dict | None:
-    method = message.get("method")
-    if message.get("id") is None:
-        return None
-    if method == "initialize":
-        return _ok(
-            message["id"],
-            {
-                "protocolVersion": "2024-11-05",
-                "capabilities": {"tools": {}},
-                "serverInfo": {"name": "zhanggui-listing", "version": "0.1.0"},
-            },
+def _raise_if_error(result: dict) -> str:
+    text = result["content"][0]["text"]
+    if result["isError"]:
+        try:
+            message = json.loads(text).get("message") or text
+        except json.JSONDecodeError:
+            message = text
+        raise ToolError(message)
+    return text
+
+
+def build_server() -> MCPServer:
+    """两个只读工具。名字和原来的自测工具一致，不增加写操作。"""
+    server = MCPServer(
+        "zhanggui-listing",
+        version="0.1.0",
+        instructions="检索自编商品证据，或按平台规则检查草稿。这两个工具都不写入台账。",
+    )
+
+    @server.tool(
+        name="lookup_product_evidence",
+        description="从自编商品资料里查证据。需要操作者身份。不会写入 Listing。",
+    )
+    def lookup_product_evidence(
+        query: str,
+        actor_id: str,
+        role: Literal["editor", "viewer"],
+        sku: str = "",
+        strategy: Literal["sparse", "dense", "rrf", "rrf_hyde"] = "rrf_hyde",
+    ) -> str:
+        return _raise_if_error(
+            call_tool(
+                "lookup_product_evidence",
+                {
+                    "query": query,
+                    "sku": sku,
+                    "strategy": strategy,
+                    "actor_id": actor_id,
+                    "role": role,
+                },
+            )
         )
-    if method == "tools/list":
-        return _ok(message["id"], {"tools": _TOOLS})
-    if method == "tools/call":
-        params = message.get("params") or {}
-        return _ok(message["id"], call_tool(params.get("name") or "", params.get("arguments") or {}))
-    return _error(message["id"], f"不支持的方法：{method}")
 
+    @server.tool(
+        name="validate_listing_draft",
+        description="用和网页确认相同的规则检查一份 Listing 草稿。不会写入。",
+    )
+    def validate_listing_draft_tool(
+        draft: dict,
+        platform: str,
+        actor_id: str,
+        role: Literal["editor", "viewer"],
+    ) -> str:
+        return _raise_if_error(
+            call_tool(
+                "validate_listing_draft",
+                {
+                    "draft": draft,
+                    "platform": platform,
+                    "actor_id": actor_id,
+                    "role": role,
+                },
+            )
+        )
 
-def _ok(message_id, result: dict) -> dict:
-    return {"jsonrpc": "2.0", "id": message_id, "result": result}
-
-
-def _error(message_id, text: str) -> dict:
-    return {"jsonrpc": "2.0", "id": message_id, "error": {"code": -32601, "message": text}}
-
-
-def _read_message() -> dict | None:
-    headers = {}
-    while True:
-        line = sys.stdin.buffer.readline()
-        if not line:
-            return None
-        if line in (b"\r\n", b"\n"):
-            break
-        key, value = line.decode("utf-8").split(":", 1)
-        headers[key.strip().lower()] = value.strip()
-    length = int(headers.get("content-length", "0"))
-    if length <= 0:
-        return None
-    body = sys.stdin.buffer.read(length)
-    return json.loads(body.decode("utf-8"))
-
-
-def _write_message(payload: dict) -> None:
-    data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-    sys.stdout.buffer.write(f"Content-Length: {len(data)}\r\n\r\n".encode("ascii"))
-    sys.stdout.buffer.write(data)
-    sys.stdout.buffer.flush()
+    return server
 
 
 def main() -> None:
-    while True:
-        message = _read_message()
-        if message is None:
-            return
-        response = handle(message)
-        if response is not None:
-            _write_message(response)
+    build_server().run(transport="stdio")
 
 
 if __name__ == "__main__":

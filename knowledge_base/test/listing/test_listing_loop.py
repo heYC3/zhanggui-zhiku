@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -13,15 +11,9 @@ from pathlib import Path
 from app.listing_agent.catalog import resolve_product
 from app.listing_agent.eval import assert_report, run_eval
 from app.listing_agent.mcp_server import call_tool
-from app.listing_agent.paths import PACKAGE_ROOT
 from app.listing_agent.retrieve import search_evidence
 from app.listing_agent.rules import Actor, validate_listing_draft
 from app.listing_agent.service import ListingError, ListingService
-
-
-def _frame(payload: dict) -> bytes:
-    data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-    return f"Content-Length: {len(data)}\r\n\r\n".encode("ascii") + data
 
 
 class ListingLoopTest(unittest.TestCase):
@@ -182,58 +174,22 @@ class ListingLoopTest(unittest.TestCase):
         payload = json.loads(checked["content"][0]["text"])
         self.assertTrue(payload["ok"])
 
-    def test_mcp_stdio_lists_tools(self):
-        process = subprocess.Popen(
-            [sys.executable, "-m", "app.listing_agent.mcp_server"],
-            cwd=str(PACKAGE_ROOT),
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+    def test_official_mcp_client_init_list_call(self):
+        from app.listing_agent.mcp_probe import run_official_client
+
+        record_path = Path(self._tmp.name) / "mcp_client_record.json"
+        record = run_official_client(record_path)
+        steps = {item["step"]: item for item in record["steps"]}
+        self.assertEqual(steps["initialize"]["server_name"], "zhanggui-listing")
+        self.assertEqual(
+            steps["list_tools"]["tools"],
+            ["lookup_product_evidence", "validate_listing_draft"],
         )
-        try:
-            process.stdin.write(
-                _frame(
-                    {
-                        "jsonrpc": "2.0",
-                        "id": 1,
-                        "method": "initialize",
-                        "params": {
-                            "protocolVersion": "2024-11-05",
-                            "capabilities": {},
-                            "clientInfo": {"name": "test", "version": "0"},
-                        },
-                    }
-                )
-            )
-            process.stdin.write(
-                _frame({"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}})
-            )
-            process.stdin.close()
-            first = _read_from(process.stdout)
-            second = _read_from(process.stdout)
-        finally:
-            process.kill()
-            process.wait(timeout=5)
-            process.stdout.close()
-            process.stderr.close()
-        self.assertEqual(first["result"]["serverInfo"]["name"], "zhanggui-listing")
-        names = [item["name"] for item in second["result"]["tools"]]
-        self.assertIn("validate_listing_draft", names)
-        self.assertIn("lookup_product_evidence", names)
-
-
-def _read_from(stream) -> dict:
-    headers = {}
-    while True:
-        line = stream.readline()
-        if not line:
-            raise AssertionError("MCP 没有返回")
-        if line in (b"\r\n", b"\n"):
-            break
-        key, value = line.decode("utf-8").split(":", 1)
-        headers[key.strip().lower()] = value.strip()
-    length = int(headers["content-length"])
-    return json.loads(stream.read(length).decode("utf-8"))
+        self.assertFalse(steps["call"]["is_error"])
+        self.assertIn("5.3", steps["call"]["text"])
+        self.assertTrue(steps["bad_arguments"]["is_error"])
+        self.assertIsNotNone(steps["process_exit"]["returncode"])
+        self.assertTrue(record_path.exists())
 
 
 class ListingApiTest(unittest.TestCase):
@@ -284,6 +240,8 @@ class ListingApiTest(unittest.TestCase):
         page = self.client.get("/listing.html")
         self.assertEqual(page.status_code, 200)
         self.assertIn("登录", page.text)
+        self.assertIn("原句模板，不调用模型", page.text)
+        self.assertIn("真实模型，仍要人工确认", page.text)
         token = self._token("小明", "pw-editor")
         created = self.client.post(
             "/api/listing/tasks",
@@ -408,6 +366,23 @@ class ListingApiTest(unittest.TestCase):
             thread.join()
         self.assertEqual([item[0] for item in results], [200, 200])
         self.assertEqual(results[0][1], results[1][1])
+
+    def test_draft_mode_switch_keeps_offline_template(self):
+        token = self._token("小明", "pw-editor")
+        rejected = self.client.post(
+            "/api/listing/tasks",
+            headers=self._headers(token),
+            json={"query": "掌柜示例耳机 X1 的蓝牙版本，写成要点", "draft_mode": "react"},
+        )
+        self.assertEqual(rejected.status_code, 400)
+        created = self.client.post(
+            "/api/listing/tasks",
+            headers=self._headers(token),
+            json={"query": "掌柜示例耳机 X1 的蓝牙版本，写成要点", "draft_mode": "offline"},
+        )
+        self.assertEqual(created.status_code, 200, created.text)
+        self.assertEqual(created.json()["draft"]["policy"], "template-draft-conservative")
+        self.assertIn("5.3", "\n".join(created.json()["draft"]["bullets"]))
 
 
 if __name__ == "__main__":
