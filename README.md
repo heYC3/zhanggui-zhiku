@@ -1,6 +1,6 @@
-# 货知（Huozhi）
+# 掌柜智库
 
-仓库目录名 `zhanggui-zhiku` 按历史保留，项目现称「货知」。
+跨境电商商品资料问答与 Listing Agent
 
 [![listing-agent](https://github.com/heYC3/zhanggui-zhiku/actions/workflows/listing-ci.yml/badge.svg)](https://github.com/heYC3/zhanggui-zhiku/actions/workflows/listing-ci.yml)
 

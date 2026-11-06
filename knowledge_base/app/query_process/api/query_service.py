@@ -15,7 +15,7 @@ from app.utils.sse_utils import create_sse_queue, SSEEvent, sse_generator, push_
 
 
 # 定义fastapi对象
-app = FastAPI(title="query service",description="货知查询服务")
+app = FastAPI(title="query service",description="掌柜智库查询服务")
 # 跨域问题解决
 app.add_middleware(
     CORSMiddleware,

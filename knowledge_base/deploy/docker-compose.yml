@@ -1,5 +1,5 @@
 # Listing 网站单独放在 deploy/docker-compose.listing.yml，避免这里一键启动时去构建应用。
-# 货知本地依赖：
+# 掌柜智库本地依赖：
 # - Milvus 向量库（19530）和它自己的存储
 # - 给手册图片用的 MinIO（9000，控制台 9001）
 # - 聊天记录 MongoDB（27017）
