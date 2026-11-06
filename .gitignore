@@ -30,13 +30,13 @@ knowledge_base/listing_data/runtime/
 .DS_Store
 Thumbs.db
 
-# 买来的课件和压缩包。体积大，压缩包里还有密钥。
+# 体积大、且可能含密钥的材料目录，不进仓库。
 课程资料/
 
 # 厂商用户手册，不放进仓库
 knowledge_base/data/samples/*.pdf
 
-# 学习笔记、求职草稿和本机环境记录。留在这台电脑，不进仓库。
+# 笔记、求职草稿和本机环境记录，不进仓库。
 学习指南.md
 交付/
 私人笔记/

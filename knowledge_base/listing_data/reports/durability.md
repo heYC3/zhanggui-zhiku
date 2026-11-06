@@ -38,7 +38,7 @@
 | 步骤 | 期望 | 实际 |
 | --- | --- | --- |
 | 本机用同一个目录启动两次 `volume_check` | 第一次停在确认；第二次仍停在确认，并且只写入一次 | 通过。第一次任务 3e5f0c2f2a494e80b61711d9e278aad5，第二次打印 written once |
-| 干净环境里构建 Listing 镜像，并用同一个卷启动两次 | 与上面相同 | 这台 Windows 没有 Docker，没有在本机构建镜像，也不把 Dockerfile 在不在写成已经验证。GitHub Actions 的 `volume` 任务会在托管机上构建镜像并跑这两次 |
+| 干净环境里构建 Listing 镜像，并用同一个卷启动两次 | 与上面相同 | 卷持久由 GitHub Actions 的 volume 任务验证，本机可选 Docker。 |
 
 本地核对命令：
 
