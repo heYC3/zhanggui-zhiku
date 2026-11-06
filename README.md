@@ -41,7 +41,9 @@ python -m app.listing_agent
 
 评测会重算冻结测集，并对照 `listing_data/reports/baseline.md`。页面在 <http://127.0.0.1:8002/listing.html>。
 
-GitHub Actions 跑同样的单元测试和 `python -m app.listing_agent.eval`。基线表和仓库里的 `baseline.md` 不一致时，流水线失败。
+GitHub Actions 跑同样的单元测试和 `python -m app.listing_agent.eval`。基线表和仓库里的 `baseline.md` 不一致时，流水线失败。另有一个任务会构建 Listing 镜像，用同一个数据卷启动两次，核对等待确认的任务还在，并且只写入一次。这台 Windows 上没有 Docker，容器结果要等那次流水线，不能把镜像文件在不在当成已经验证。
+
+检查点默认写进 SQLite，进程被强制结束后还能接着确认。`LISTING_CHECKPOINT=file` 仍是单机演示用的文件快照，保存前被杀掉就续不上。故障、并发和推送断开的步骤与结果在 `knowledge_base/listing_data/reports/durability.md`。留出案例的分项对照在 `knowledge_base/listing_data/reports/ablation.md`。
 
 ### 完整 RAG
 
