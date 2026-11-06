@@ -94,16 +94,16 @@
   </header>
   <main>
     <section>
-      <label for="userId">你的名字</label>
-      <input id="userId" value="小明" />
-      <label for="role">身份</label>
-      <select id="role">
-        <option value="editor">编辑（可以确认写入）</option>
-        <option value="viewer">查看（只能看，不能写入）</option>
-      </select>
+      <label for="userId">账号</label>
+      <input id="userId" value="小明" autocomplete="username" />
+      <label for="password">密码</label>
+      <input id="password" type="password" autocomplete="current-password" />
+      <p id="who" class="meta">先登录。身份由服务端账号决定。</p>
+      <div class="row">
+        <button type="button" id="loginBtn">登录</button>
+      </div>
       <label for="query">要做什么</label>
       <textarea id="query">掌柜示例耳机 X1 单次充电能听多久，写成亚马逊要点</textarea>
-      <label class="check"><input id="unknown" type="checkbox" /> 模拟写入没有返回结果</label>
       <div class="row">
         <button class="primary" id="startBtn">生成草稿</button>
         <button id="sampleAmbiguous" type="button">试试型号没说清</button>
@@ -152,9 +152,58 @@
     };
     let task = null;
     let sessionId = "";
+    let token = sessionStorage.getItem("listingToken") || "";
+    let actorRole = sessionStorage.getItem("listingRole") || "";
     let source = null;
 
     const $ = (id) => document.getElementById(id);
+
+    function authHeaders() {
+      const headers = { "Content-Type": "application/json" };
+      if (token) headers.Authorization = "Bearer " + token;
+      return headers;
+    }
+
+    async function post(url, body) {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify(body || {})
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || "请求失败");
+      return data;
+    }
+
+    async function listen(taskId) {
+      if (source) source.abort();
+      source = new AbortController();
+      const response = await fetch(`/api/listing/stream/${taskId}`, {
+        headers: { Authorization: "Bearer " + token },
+        signal: source.signal
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.detail || "看不到这条任务");
+      }
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const chunk = await reader.read();
+        if (chunk.done) break;
+        buffer += decoder.decode(chunk.value, { stream: true });
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop();
+        for (const part of parts) {
+          if (part.includes("event: end")) return;
+          const latest = await fetch(`/api/listing/tasks/${taskId}`, {
+            headers: { Authorization: "Bearer " + token }
+          }).then((item) => item.json());
+          render(latest);
+        }
+      }
+    }
 
     function setStatus(text, kind) {
       const box = $("status");
@@ -210,29 +259,21 @@
       if (snapshot.clarify_question) setStatus(snapshot.clarify_question, "warn");
     }
 
-    async function post(url, body) {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.detail || "请求失败");
-      return data;
-    }
-
-    function listen(taskId) {
-      if (source) source.close();
-      source = new EventSource(`/api/listing/stream/${taskId}`);
-      source.addEventListener("end", () => source.close());
-      source.onerror = () => source.close();
-      ["node", "tool", "draft", "final", "error"].forEach((name) => {
-        source.addEventListener(name, async () => {
-          const latest = await fetch(`/api/listing/tasks/${taskId}`).then((item) => item.json());
-          render(latest);
+    $("loginBtn").onclick = async () => {
+      try {
+        const logged = await post("/api/listing/sessions", {
+          user_id: $("userId").value,
+          password: $("password").value
         });
-      });
-    }
+        token = logged.token;
+        actorRole = logged.role;
+        sessionStorage.setItem("listingToken", token);
+        sessionStorage.setItem("listingRole", actorRole);
+        $("who").textContent = logged.user_id + " · " + (actorRole === "editor" ? "编辑" : "查看");
+      } catch (error) {
+        setStatus(error.message, "bad");
+      }
+    };
 
     $("startBtn").onclick = async () => {
       $("startBtn").disabled = true;
@@ -240,11 +281,7 @@
       try {
         const snapshot = await post("/api/listing/tasks", {
           query: $("query").value,
-          user_id: $("userId").value,
-          role: $("role").value,
           session_id: sessionId || null,
-          rerank_mode: "on",
-          inject_write_unknown: $("unknown").checked,
           idempotency_key: crypto.randomUUID()
         });
         render(snapshot);
@@ -262,8 +299,6 @@
 
     $("saveBtn").onclick = async () => {
       const snapshot = await post(`/api/listing/tasks/${task.task_id}/draft`, {
-        user_id: $("userId").value,
-        role: $("role").value,
         base_version: task.draft_version,
         title: $("title").value,
         bullets: $("bullets").value.split("\n")
@@ -274,8 +309,6 @@
     $("confirmBtn").onclick = async () => {
       try {
         const snapshot = await post(`/api/listing/tasks/${task.task_id}/confirm`, {
-          user_id: $("userId").value,
-          role: $("role").value,
           draft_version: task.draft_version
         });
         render(snapshot);
@@ -286,27 +319,18 @@
 
     $("rejectBtn").onclick = async () => {
       const snapshot = await post(`/api/listing/tasks/${task.task_id}/reject`, {
-        user_id: $("userId").value,
-        role: $("role").value,
         reason: "页面上拒绝"
       });
       render(snapshot);
     };
 
     $("cancelBtn").onclick = async () => {
-      const snapshot = await post(`/api/listing/tasks/${task.task_id}/cancel`, {
-        user_id: $("userId").value,
-        role: $("role").value
-      });
+      const snapshot = await post(`/api/listing/tasks/${task.task_id}/cancel`, {});
       render(snapshot);
     };
 
     async function reconcile(found) {
-      const snapshot = await post(`/api/listing/tasks/${task.task_id}/reconcile`, {
-        user_id: $("userId").value,
-        role: $("role").value,
-        found
-      });
+      const snapshot = await post(`/api/listing/tasks/${task.task_id}/reconcile`, { found });
       render(snapshot);
     }
     $("foundBtn").onclick = () => reconcile(true);

@@ -14,7 +14,7 @@ from typing_extensions import TypedDict
 
 from app.listing_agent.catalog import chunks_for, display_name, get_product, resolve_product
 from app.listing_agent.drafting import build_draft
-from app.listing_agent.retrieve import search_evidence
+from app.evidence.store import retrieve_product_evidence
 from app.listing_agent.rules import Actor, validate_listing_draft
 
 
@@ -163,7 +163,7 @@ def build_graph(checkpointer, ledger):
         }
 
     def retrieve_node(state: ListingState) -> dict:
-        result = search_evidence(
+        result = retrieve_product_evidence(
             state.get("query") or "",
             sku=state.get("sku") or None,
             strategy=state.get("strategy") or "rrf_hyde",
@@ -174,6 +174,10 @@ def build_graph(checkpointer, ledger):
             sheet = chunks_for(state["sku"])[:5]
             for row in sheet:
                 row["score"] = 0.01
+                row["chunk_id"] = row["id"]
+                row["source"] = f"listing_data/products/{state['sku']}.json#{row['id']}"
+                row["sku"] = state["sku"]
+                row["product_id"] = state["sku"]
             result["evidence"] = sheet
             result["meta"]["fallback"] = "whole_product_sheet"
         return {"evidence": result["evidence"], "retrieval": result["meta"]}

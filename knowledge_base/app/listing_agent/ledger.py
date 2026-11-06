@@ -18,11 +18,15 @@ def _now() -> str:
     return datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
 
 
+class IdempotencyConflict(Exception):
+    """同一用户的幂等键已经绑定了另一份请求。"""
+
+
 class Ledger:
     def __init__(self, path: Path):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         self._conn = sqlite3.connect(self.path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._setup()
@@ -83,37 +87,121 @@ class Ledger:
             );
             """
         )
+        self._migrate()
         self._conn.commit()
+
+    def _migrate(self) -> None:
+        task_cols = {row[1] for row in self._conn.execute("PRAGMA table_info(tasks)")}
+        if "org_id" not in task_cols:
+            self._conn.execute("ALTER TABLE tasks ADD COLUMN org_id TEXT DEFAULT ''")
+        message_cols = {row[1] for row in self._conn.execute("PRAGMA table_info(messages)")}
+        if "user_id" not in message_cols:
+            self._conn.execute("ALTER TABLE messages ADD COLUMN user_id TEXT DEFAULT ''")
+        self._conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS idempotency (
+                org_id TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                operation TEXT NOT NULL,
+                idem_key TEXT NOT NULL,
+                digest TEXT NOT NULL,
+                task_id TEXT NOT NULL,
+                PRIMARY KEY (org_id, user_id, operation, idem_key)
+            );
+            CREATE TABLE IF NOT EXISTS session_owners (
+                session_id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                org_id TEXT NOT NULL
+            );
+            """
+        )
 
     def close(self) -> None:
         self._conn.close()
 
     def create_task(self, row: dict) -> None:
-        now = _now()
         with self._lock:
+            self._insert_task(row)
+            self._conn.commit()
+
+    def reserve_idempotency(
+        self,
+        org_id: str,
+        user_id: str,
+        operation: str,
+        idem_key: str,
+        digest: str,
+        task_row: dict,
+    ) -> str | None:
+        """相同键和相同内容返回已有任务。新键会在同一事务里写下任务行。"""
+        with self._lock:
+            self._conn.execute("BEGIN IMMEDIATE")
+            row = self._conn.execute(
+                """
+                SELECT digest, task_id FROM idempotency
+                WHERE org_id = ? AND user_id = ? AND operation = ? AND idem_key = ?
+                """,
+                (org_id, user_id, operation, idem_key),
+            ).fetchone()
+            if row is not None:
+                self._conn.commit()
+                if row["digest"] != digest:
+                    raise IdempotencyConflict("幂等键已被另一份请求使用")
+                return row["task_id"]
             self._conn.execute(
                 """
-                INSERT INTO tasks (
-                    task_id, session_id, idempotency_key, user_id, role, platform,
-                    query, status, sku, clarify_question, candidates_json, draft_json,
-                    draft_version, validation_json, retrieval_json, receipt_json,
-                    cancelled, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', '', '[]', '', 0, '', '', '', 0, ?, ?)
+                INSERT INTO idempotency (org_id, user_id, operation, idem_key, digest, task_id)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
-                (
-                    row["task_id"],
-                    row["session_id"],
-                    row["idempotency_key"],
-                    row["user_id"],
-                    row["role"],
-                    row["platform"],
-                    row["query"],
-                    "running",
-                    now,
-                    now,
-                ),
+                (org_id, user_id, operation, idem_key, digest, task_row["task_id"]),
             )
+            self._insert_task(task_row)
             self._conn.commit()
+            return None
+
+    def _insert_task(self, row: dict) -> None:
+        now = _now()
+        self._conn.execute(
+            """
+            INSERT INTO tasks (
+                task_id, session_id, idempotency_key, user_id, role, platform,
+                query, status, sku, clarify_question, candidates_json, draft_json,
+                draft_version, validation_json, retrieval_json, receipt_json,
+                cancelled, created_at, updated_at, org_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', '', '[]', '', 0, '', '', '', 0, ?, ?, ?)
+            """,
+            (
+                row["task_id"],
+                row["session_id"],
+                row["idempotency_key"],
+                row["user_id"],
+                row["role"],
+                row["platform"],
+                row["query"],
+                "running",
+                now,
+                now,
+                row.get("org_id") or "",
+            ),
+        )
+
+    def claim_session(self, session_id: str, user_id: str, org_id: str) -> None:
+        with self._lock:
+            self._conn.execute("BEGIN IMMEDIATE")
+            row = self._conn.execute(
+                "SELECT user_id FROM session_owners WHERE session_id = ?",
+                (session_id,),
+            ).fetchone()
+            if row is None:
+                self._conn.execute(
+                    "INSERT INTO session_owners (session_id, user_id, org_id) VALUES (?, ?, ?)",
+                    (session_id, user_id, org_id),
+                )
+                self._conn.commit()
+                return
+            self._conn.commit()
+            if row["user_id"] != user_id:
+                raise PermissionError("没有这条会话")
 
     def find_task_by_key(self, idempotency_key: str) -> str | None:
         row = self._conn.execute(

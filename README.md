@@ -70,13 +70,24 @@ PDF 手册要另备 MinerU 令牌。BGE-M3 在第一次向量化时按 `BGE_M3` 
 
 导入、问答、Listing 三条链路是端到端独立完成的。Listing 用一句话指定商品，先确认型号，再从自编资料里找证据，只用证据原句拼标题和要点。资料没写的不补。X1 和 X1 Pro 分不清时先追问，不写草稿。
 
-个人新增的是 Listing 评测和人机确认：开发集与冻结测集分开，完成率按一题一次的成功或失败来算；草稿要等确认、拒绝或取消，确认之后才写入。
+个人新增的是 Listing 评测和人机确认。问答检索排位和 Listing 任务完成率分开计，不合成一个数。
 
 运行上做了这些处理：MinIO 没启动时网页仍能打开；向量模型在真正编码时再加载；问答有状态查询和流式错误。
 
 ## Acknowledgements
 
 参考过开源组件和教学材料，自己把导入、问答和 Listing 落地。厂商手册没有放进仓库。Listing 的商品、规则、评测题和确认流程是个人新增。许可是 [MIT](LICENSE)。
+
+## 两条能力
+
+问答和 Listing 是两个接口、两条工作流。它们只共用证据检索：同一商品返回原句、`chunk_id` 和来源。目录里有的演示商品走离线资料；目录里没有的手册再走 Milvus。
+
+| 能力 | 出口 | 指标 |
+| --- | --- | --- |
+| 手册问答 | `8001` `/chat.html` | 检索排位 hit@1、hit@3 |
+| Listing | `8002` `/listing.html` | 任务完成率，一题一次，成功或失败 |
+
+下面的完成率和 hit@k 仍是两张表。
 
 ## 冻结测集基线
 
@@ -148,15 +159,18 @@ Before 没过的 5 条里，2 条是改写问法没有找回目标证据，3 条
 
 | 地址 | 作用 | 你要交的内容 | 返回 |
 | --- | --- | --- | --- |
-| `POST /api/listing/tasks` | 开始写草稿 | `query`，`user_id`，`role` 为 `editor` 或 `viewer` | 任务编号、步骤、草稿、证据 |
+| `POST /api/listing/sessions` | 登录 | `user_id`、`password` | 令牌。之后的请求带 `Authorization: Bearer` |
+| `POST /api/listing/tasks` | 开始写草稿 | `query`。身份以令牌为准 | 任务编号、步骤、草稿、证据 |
 | `GET /api/listing/tasks/{task_id}` | 看当前进度 | 路径里的任务编号 | 同上 |
 | `GET /api/listing/stream/{task_id}` | 用 SSE 看步骤 | 任务编号 | 一步一步的事件 |
-| `POST /api/listing/tasks/{task_id}/confirm` | 确认写入 | 名字、`role=editor`、`draft_version` | 写入回执 |
+| `POST /api/listing/tasks/{task_id}/confirm` | 确认写入 | `draft_version`。编辑身份来自令牌 | 写入回执 |
 | `POST /api/listing/tasks/{task_id}/reject` | 拒绝 | 名字和编辑身份 | 状态变为已拒绝 |
 | `POST /api/listing/tasks/{task_id}/cancel` | 取消 | 名字和编辑身份 | 状态变为已取消 |
 | `POST /api/listing/tasks/{task_id}/reconcile` | 结果不明时核对 | `found` 为 true 或 false | 核对后的状态 |
 
-查看身份不能确认写入。草稿版本不对也不能写入。同一个 `idempotency_key` 再提交一次，会回到原来的任务，不会写两份。
+未登录返回 401。看别人的任务、进度或会话返回 404。查看身份对自己的任务点确认返回 403。同一个幂等键、同一份内容会回到原任务；同一把键换了内容返回 409。`inject_write_unknown` 只在 `LISTING_TEST_MODE=1` 时接受。
+
+查看身份不能确认写入。草稿版本不对也不能写入。
 
 规则校验可以单独当 MCP 用，工作目录在 `knowledge_base`：
 
