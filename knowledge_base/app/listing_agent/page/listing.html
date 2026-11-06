@@ -63,7 +63,13 @@
     }
     button.primary { background: var(--green); color: white; }
     button.primary:hover { background: var(--green-dark); }
-    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    button:disabled,
+    button.primary:disabled {
+      opacity: 1;
+      cursor: not-allowed;
+      background: #efe8dc;
+      color: var(--muted);
+    }
     .check { display: flex; gap: 8px; align-items: center; margin-top: 12px; font-size: 14px; }
     .check input { width: auto; }
     #status {
@@ -94,16 +100,22 @@
   </header>
   <main>
     <section>
-      <label for="userId">你的名字</label>
-      <input id="userId" value="小明" />
-      <label for="role">身份</label>
-      <select id="role">
-        <option value="editor">编辑（可以确认写入）</option>
-        <option value="viewer">查看（只能看，不能写入）</option>
-      </select>
+      <label for="userId">账号</label>
+      <input id="userId" value="小明" autocomplete="username" />
+      <label for="password">密码</label>
+      <input id="password" type="password" autocomplete="current-password" />
+      <p id="who" class="meta">先登录。身份由服务端账号决定。</p>
+      <div class="row">
+        <button type="button" id="loginBtn">登录</button>
+      </div>
       <label for="query">要做什么</label>
       <textarea id="query">掌柜示例耳机 X1 单次充电能听多久，写成亚马逊要点</textarea>
-      <label class="check"><input id="unknown" type="checkbox" /> 模拟写入没有返回结果</label>
+      <label for="draftMode">草稿来源</label>
+      <select id="draftMode">
+        <option value="offline" selected>原句模板，不调用模型</option>
+        <option value="llm">真实模型，仍要人工确认</option>
+      </select>
+      <p class="meta">选真实模型时，先走百炼。百炼走不通就换 OpenAI。两家都不通，就用知识库里的原句。点确认才写入。</p>
       <div class="row">
         <button class="primary" id="startBtn">生成草稿</button>
         <button id="sampleAmbiguous" type="button">试试型号没说清</button>
@@ -120,6 +132,7 @@
       <textarea id="bullets"></textarea>
       <p id="gaps" class="meta"></p>
       <p id="rules" class="meta"></p>
+      <p id="actionNote" class="meta"></p>
       <div class="row">
         <button id="saveBtn" disabled>保存修改</button>
         <button class="primary" id="confirmBtn" disabled>确认写入</button>
@@ -146,15 +159,65 @@
       ambiguous: "型号没说清",
       insufficient: "证据不够，没有写草稿",
       failed: "流程失败",
+      draft_failed: "模型没有给出可用草稿",
       confirm_rejected: "没有写入",
       write_unknown: "写入结果不明，请先核对",
       running: "正在处理"
     };
     let task = null;
     let sessionId = "";
+    let token = sessionStorage.getItem("listingToken") || "";
+    let actorRole = sessionStorage.getItem("listingRole") || "";
     let source = null;
 
     const $ = (id) => document.getElementById(id);
+
+    function authHeaders() {
+      const headers = { "Content-Type": "application/json" };
+      if (token) headers.Authorization = "Bearer " + token;
+      return headers;
+    }
+
+    async function post(url, body) {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify(body || {})
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || "请求失败");
+      return data;
+    }
+
+    async function listen(taskId) {
+      if (source) source.abort();
+      source = new AbortController();
+      const response = await fetch(`/api/listing/stream/${taskId}`, {
+        headers: { Authorization: "Bearer " + token },
+        signal: source.signal
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.detail || "看不到这条任务");
+      }
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const chunk = await reader.read();
+        if (chunk.done) break;
+        buffer += decoder.decode(chunk.value, { stream: true });
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop();
+        for (const part of parts) {
+          if (part.includes("event: end")) return;
+          const latest = await fetch(`/api/listing/tasks/${taskId}`, {
+            headers: { Authorization: "Bearer " + token }
+          }).then((item) => item.json());
+          render(latest);
+        }
+      }
+    }
 
     function setStatus(text, kind) {
       const box = $("status");
@@ -170,7 +233,13 @@
       (snapshot.events || []).forEach((event) => {
         const item = document.createElement("li");
         const data = event.data || {};
-        item.textContent = `${data.label || data.name || event.event}：${data.detail || ""}`;
+        let detail = data.detail || "";
+        if (!detail && data.name === "wait_human") {
+          detail = snapshot.status === "written" || snapshot.status === "written_checked"
+            ? "已经确认，并写入台账"
+            : "点下面的「确认写入」才会进台账";
+        }
+        item.textContent = `${data.label || data.name || event.event}：${detail}`;
         steps.appendChild(item);
       });
       if (!steps.children.length) steps.innerHTML = "<li>还没有步骤</li>";
@@ -178,7 +247,10 @@
       const draft = snapshot.draft || {};
       $("title").value = draft.title || "";
       $("bullets").value = (draft.bullets || []).join("\n");
-      $("gaps").textContent = (draft.gaps || []).join("；");
+      const gapParts = [];
+      if (draft.fallback_note) gapParts.push(draft.fallback_note);
+      gapParts.push(...(draft.gaps || []));
+      $("gaps").textContent = gapParts.join("；");
       const validation = snapshot.validation;
       $("rules").textContent = validation
         ? (validation.ok ? "规则通过" : validation.errors.join("；"))
@@ -198,41 +270,45 @@
       $("models").textContent = modelLine;
       $("receipt").textContent = snapshot.receipt ? snapshot.receipt.message : "";
       const waiting = snapshot.status === "awaiting_confirmation";
+      const written = snapshot.status === "written" || snapshot.status === "written_checked";
       const canEdit = waiting && snapshot.role === "editor";
+      const canConfirm = canEdit && validation && validation.ok;
       $("saveBtn").disabled = !canEdit;
-      $("confirmBtn").disabled = !(canEdit && validation && validation.ok);
+      $("confirmBtn").disabled = !canConfirm;
+      $("confirmBtn").textContent = written ? "已经写入" : "确认写入";
       $("rejectBtn").disabled = !canEdit;
       $("cancelBtn").disabled = !canEdit;
+      if (written) {
+        $("actionNote").textContent = "已经写入台账，不用再点确认。";
+      } else if (canConfirm) {
+        $("actionNote").textContent = "草稿检查通过了。点绿色的「确认写入」，才会写入台账。";
+      } else if (waiting) {
+        $("actionNote").textContent = "现在还不能写入。";
+      } else {
+        $("actionNote").textContent = "";
+      }
       $("reconcileRow").hidden = snapshot.status !== "write_unknown";
-      const kind = ["ambiguous", "insufficient", "failed", "confirm_rejected", "write_unknown"].includes(snapshot.status)
+      const kind = ["ambiguous", "insufficient", "failed", "draft_failed", "confirm_rejected", "write_unknown"].includes(snapshot.status)
         ? "warn" : "";
       setStatus(statusLabels[snapshot.status] || snapshot.status, snapshot.clarify_question ? "warn" : kind);
       if (snapshot.clarify_question) setStatus(snapshot.clarify_question, "warn");
     }
 
-    async function post(url, body) {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.detail || "请求失败");
-      return data;
-    }
-
-    function listen(taskId) {
-      if (source) source.close();
-      source = new EventSource(`/api/listing/stream/${taskId}`);
-      source.addEventListener("end", () => source.close());
-      source.onerror = () => source.close();
-      ["node", "tool", "draft", "final", "error"].forEach((name) => {
-        source.addEventListener(name, async () => {
-          const latest = await fetch(`/api/listing/tasks/${taskId}`).then((item) => item.json());
-          render(latest);
+    $("loginBtn").onclick = async () => {
+      try {
+        const logged = await post("/api/listing/sessions", {
+          user_id: $("userId").value,
+          password: $("password").value
         });
-      });
-    }
+        token = logged.token;
+        actorRole = logged.role;
+        sessionStorage.setItem("listingToken", token);
+        sessionStorage.setItem("listingRole", actorRole);
+        $("who").textContent = logged.user_id + " · " + (actorRole === "editor" ? "编辑" : "查看");
+      } catch (error) {
+        setStatus(error.message, "bad");
+      }
+    };
 
     $("startBtn").onclick = async () => {
       $("startBtn").disabled = true;
@@ -240,12 +316,9 @@
       try {
         const snapshot = await post("/api/listing/tasks", {
           query: $("query").value,
-          user_id: $("userId").value,
-          role: $("role").value,
           session_id: sessionId || null,
-          rerank_mode: "on",
-          inject_write_unknown: $("unknown").checked,
-          idempotency_key: crypto.randomUUID()
+          idempotency_key: crypto.randomUUID(),
+          draft_mode: $("draftMode").value
         });
         render(snapshot);
         listen(snapshot.task_id);
@@ -262,8 +335,6 @@
 
     $("saveBtn").onclick = async () => {
       const snapshot = await post(`/api/listing/tasks/${task.task_id}/draft`, {
-        user_id: $("userId").value,
-        role: $("role").value,
         base_version: task.draft_version,
         title: $("title").value,
         bullets: $("bullets").value.split("\n")
@@ -272,41 +343,46 @@
     };
 
     $("confirmBtn").onclick = async () => {
+      if (!task) {
+        $("actionNote").textContent = "还没有草稿。先点「生成草稿」。";
+        return;
+      }
+      if (task.status === "written" || task.status === "written_checked") {
+        $("actionNote").textContent = "这份草稿已经写入台账，不用再点。";
+        $("confirmBtn").disabled = true;
+        $("confirmBtn").textContent = "已经写入";
+        return;
+      }
+      $("confirmBtn").disabled = true;
+      $("confirmBtn").textContent = "正在写入…";
+      $("actionNote").textContent = "正在写入台账，请稍等。";
       try {
         const snapshot = await post(`/api/listing/tasks/${task.task_id}/confirm`, {
-          user_id: $("userId").value,
-          role: $("role").value,
           draft_version: task.draft_version
         });
         render(snapshot);
       } catch (error) {
+        $("confirmBtn").disabled = false;
+        $("confirmBtn").textContent = "确认写入";
+        $("actionNote").textContent = error.message;
         setStatus(error.message, "bad");
       }
     };
 
     $("rejectBtn").onclick = async () => {
       const snapshot = await post(`/api/listing/tasks/${task.task_id}/reject`, {
-        user_id: $("userId").value,
-        role: $("role").value,
         reason: "页面上拒绝"
       });
       render(snapshot);
     };
 
     $("cancelBtn").onclick = async () => {
-      const snapshot = await post(`/api/listing/tasks/${task.task_id}/cancel`, {
-        user_id: $("userId").value,
-        role: $("role").value
-      });
+      const snapshot = await post(`/api/listing/tasks/${task.task_id}/cancel`, {});
       render(snapshot);
     };
 
     async function reconcile(found) {
-      const snapshot = await post(`/api/listing/tasks/${task.task_id}/reconcile`, {
-        user_id: $("userId").value,
-        role: $("role").value,
-        found
-      });
+      const snapshot = await post(`/api/listing/tasks/${task.task_id}/reconcile`, { found });
       render(snapshot);
     }
     $("foundBtn").onclick = () => reconcile(true);

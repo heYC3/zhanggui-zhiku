@@ -35,57 +35,14 @@ class NodeSearchEmbedding(NodeBase):
         """
 
         try:
+            from app.evidence.store import as_query_hit, retrieve_product_evidence
 
-            # 1、用户问题和已确认商品名
-            query = state.get("rewritten_query")
-            item_names = state.get("item_names")
-
-            # 2、生成向量 (Dense + Sparse)
-            logger.info("正在生成混合向量 (Embedding)...")
-            embeddings = generate_embeddings([query])
-
-            dense_vec = embeddings.get("dense")[0]
-            sparse_vec = embeddings.get("sparse")[0]
-
-            # 3. 获取Milvus的集合
-            collection_name = milvus_config.chunks_collection
-            logger.info(f"准备在集合 '{collection_name}' 中执行混合检索")
-
-            # 4、处理 item_names 中的引号，防止注入或语法错误
-            expr = None
-            if item_names:
-                quoted = ", ".join(f'"{v}"' for v in item_names)
-                expr = f"item_name in [{quoted}]"
-                logger.info(f"过滤条件: {expr}")
-            else:
-                logger.info("未指定商品名过滤，将全库检索")
-
-            # 5、构造Milvus混合搜索请求对象
-            reqs = create_hybrid_search_requests(
-                dense_vector = dense_vec,
-                sparse_vector = sparse_vec,
-                expr = expr,
-                limit = 10  # 底层检索返回数量（后续会再过滤为5，预留更多结果做重排序）
-            )
-
-            # 6、执行混合向量检索
-            logger.info("开始执行 Milvus 混合检索...")
-            client = get_milvus_client()
-            res = hybrid_search(
-                client=client,
-                collection_name=collection_name,  # 检索的目标集合名（文本片段向量集合）
-                reqs=reqs,  # 构造好的混合搜索请求对象（稠密+稀疏）
-                ranker_weights=(0.8, 0.2),  # 稠/稀疏向量评分权重配比，各占50%（可按业务调优）
-                norm_score=True,  # 开启评分归一化，将距离值转为0-1区间的相似度评分
-                limit=5,  # 最终返回的TOP5相似度最高结果
-                output_fields=["chunk_id", "content", "item_name"]  # 指定返回的业务字段
-            )
-
-            # 7、构造并返回结果：若检索结果非空，取res[0]，否则返回空列表
-            logger.info(f"节点search_embedding处理成功 :{res}")
-
+            query = state.get("rewritten_query") or ""
+            item_names = state.get("item_names") or []
+            product_id = item_names[0] if item_names else None
+            found = retrieve_product_evidence(query, product_id=product_id, strategy="rrf", limit=5)
             add_done_task(state["session_id"], self.name)
-            return {"embedding_chunks": res[0] if res else []}
+            return {"embedding_chunks": [as_query_hit(row) for row in found["evidence"]]}
 
         except Exception as e:
             logger.exception(f"向量搜索失败: {e}")

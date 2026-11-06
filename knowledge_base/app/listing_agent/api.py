@@ -4,18 +4,21 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
-from app.listing_agent.paths import MODEL_CARD_PATH
+from app.listing_agent.auth import AuthStore, SessionActor, load_accounts_from_env
+from app.listing_agent.paths import MODEL_CARD_PATH, runtime_dir
 from app.listing_agent.service import ListingError, ListingService
 
 
 app = FastAPI(title="掌柜智库 Listing", description="商品资料检索、草稿确认和写入")
 _service: ListingService | None = None
+_auth: AuthStore | None = None
 
 _TERMINAL = {
     "written",
@@ -27,6 +30,7 @@ _TERMINAL = {
     "failed",
     "confirm_rejected",
     "write_unknown",
+    "draft_failed",
 }
 
 
@@ -37,41 +41,67 @@ def get_service() -> ListingService:
     return _service
 
 
+def get_auth() -> AuthStore:
+    global _auth
+    if _auth is None:
+        store = AuthStore(runtime_dir() / "auth.sqlite3")
+        load_accounts_from_env(store)
+        _auth = store
+    return _auth
+
+
+def test_mode() -> bool:
+    return os.getenv("LISTING_TEST_MODE", "").strip().lower() in {"1", "true", "yes"}
+
+
+def actor_from_request(request: Request) -> SessionActor:
+    header = request.headers.get("authorization", "")
+    if not header.lower().startswith("bearer "):
+        raise ListingError("未登录", 401)
+    actor = get_auth().resolve(header.split(" ", 1)[1].strip())
+    if actor is None:
+        raise ListingError("未登录", 401)
+    return actor
+
+
 @app.exception_handler(ListingError)
 async def _listing_error(_request: Request, exc: ListingError):
     return JSONResponse(status_code=exc.status_code, content={"detail": str(exc)})
 
 
+class LoginBody(BaseModel):
+    user_id: str
+    password: str
+
+
 class StartBody(BaseModel):
     query: str
-    user_id: str = "小明"
-    role: str = "editor"
     platform: str = "amazon"
     session_id: str | None = None
     idempotency_key: str | None = None
     rerank_mode: str = "on"
     inject_write_unknown: bool = False
+    draft_mode: str | None = None
 
 
 class DecisionBody(BaseModel):
-    user_id: str
-    role: str = "editor"
     draft_version: int = 0
     reason: str = ""
 
 
 class DraftBody(BaseModel):
-    user_id: str
-    role: str = "editor"
     base_version: int
     title: str = ""
     bullets: list[str] = Field(default_factory=list)
 
 
 class ReconcileBody(BaseModel):
-    user_id: str
-    role: str = "editor"
     found: bool
+
+
+def _guard_faults(rerank_mode: str, inject_write_unknown: bool) -> None:
+    if not test_mode() and (inject_write_unknown or rerank_mode not in {"", "on"}):
+        raise ListingError("故障注入只在测试模式开放", 403)
 
 
 @app.get("/listing.html")
@@ -93,46 +123,69 @@ async def meta():
     return card
 
 
+@app.post("/api/listing/sessions")
+async def login(body: LoginBody):
+    token = get_auth().login(body.user_id.strip(), body.password)
+    if not token:
+        raise ListingError("账号或密码不对", 401)
+    actor = get_auth().resolve(token)
+    return {
+        "token": token,
+        "user_id": actor.user_id,
+        "role": actor.role,
+        "org_id": actor.org_id,
+    }
+
+
 @app.post("/api/listing/tasks")
-async def start_task(body: StartBody):
+async def start_task(body: StartBody, request: Request):
+    actor = actor_from_request(request)
+    _guard_faults(body.rerank_mode, body.inject_write_unknown)
     return get_service().start(
         query=body.query,
-        user_id=body.user_id.strip(),
-        role=body.role,
+        user_id=actor.user_id,
+        role=actor.role,
+        org_id=actor.org_id,
         platform=body.platform,
         session_id=body.session_id,
         idempotency_key=body.idempotency_key,
-        rerank_mode=body.rerank_mode,
-        inject_write_unknown=body.inject_write_unknown,
+        rerank_mode=body.rerank_mode if test_mode() else "on",
+        inject_write_unknown=bool(body.inject_write_unknown) and test_mode(),
+        draft_mode=body.draft_mode,
     )
 
 
 @app.get("/api/listing/tasks/{task_id}")
-async def get_task(task_id: str):
-    return get_service().snapshot(task_id)
+async def get_task(task_id: str, request: Request):
+    actor = actor_from_request(request)
+    return get_service().snapshot_for(task_id, actor.user_id)
 
 
 @app.post("/api/listing/tasks/{task_id}/confirm")
-async def confirm_task(task_id: str, body: DecisionBody):
-    return get_service().confirm(task_id, body.user_id.strip(), body.role, body.draft_version)
+async def confirm_task(task_id: str, body: DecisionBody, request: Request):
+    actor = actor_from_request(request)
+    return get_service().confirm(task_id, actor.user_id, actor.role, body.draft_version)
 
 
 @app.post("/api/listing/tasks/{task_id}/reject")
-async def reject_task(task_id: str, body: DecisionBody):
-    return get_service().reject(task_id, body.user_id.strip(), body.role, body.reason)
+async def reject_task(task_id: str, body: DecisionBody, request: Request):
+    actor = actor_from_request(request)
+    return get_service().reject(task_id, actor.user_id, actor.role, body.reason)
 
 
 @app.post("/api/listing/tasks/{task_id}/cancel")
-async def cancel_task(task_id: str, body: DecisionBody):
-    return get_service().cancel(task_id, body.user_id.strip(), body.role)
+async def cancel_task(task_id: str, body: DecisionBody, request: Request):
+    actor = actor_from_request(request)
+    return get_service().cancel(task_id, actor.user_id, actor.role)
 
 
 @app.post("/api/listing/tasks/{task_id}/draft")
-async def edit_draft(task_id: str, body: DraftBody):
+async def edit_draft(task_id: str, body: DraftBody, request: Request):
+    actor = actor_from_request(request)
     return get_service().update_draft(
         task_id,
-        body.user_id.strip(),
-        body.role,
+        actor.user_id,
+        actor.role,
         body.base_version,
         body.title,
         body.bullets,
@@ -140,22 +193,24 @@ async def edit_draft(task_id: str, body: DraftBody):
 
 
 @app.post("/api/listing/tasks/{task_id}/reconcile")
-async def reconcile_task(task_id: str, body: ReconcileBody):
-    return get_service().reconcile(task_id, body.user_id.strip(), body.role, body.found)
+async def reconcile_task(task_id: str, body: ReconcileBody, request: Request):
+    actor = actor_from_request(request)
+    return get_service().reconcile(task_id, actor.user_id, actor.role, body.found)
 
 
 @app.get("/api/listing/stream/{task_id}")
 async def stream_task(task_id: str, request: Request):
-    """把已经发生的步骤推给页面，确认之后的新步骤也会继续推。"""
+    """把已经发生的步骤推给页面。未登录 401，别人的任务 404。"""
+    actor = actor_from_request(request)
     service = get_service()
-    service.snapshot(task_id)
+    service.snapshot_for(task_id, actor.user_id)
 
     async def generate():
         cursor = 0
         while True:
             if await request.is_disconnected():
                 break
-            snapshot = service.snapshot(task_id)
+            snapshot = service.snapshot_for(task_id, actor.user_id)
             for event in snapshot["events"]:
                 if event["id"] <= cursor:
                     continue

@@ -1,0 +1,44 @@
+{
+  "sdk": "mcp==2.3.0",
+  "transport": "stdio-ndjson",
+  "timeout_seconds": 20.0,
+  "timeout_type": "float",
+  "server_command": [
+    "python",
+    "-m",
+    "app.listing_agent.mcp_server"
+  ],
+  "steps": [
+    {
+      "step": "initialize",
+      "server_name": "zhanggui-listing",
+      "server_version": "0.1.0",
+      "protocol_version": "2025-11-25"
+    },
+    {
+      "step": "list_tools",
+      "tools": [
+        "lookup_product_evidence",
+        "validate_listing_draft"
+      ]
+    },
+    {
+      "step": "call",
+      "tool": "lookup_product_evidence",
+      "is_error": false,
+      "text": "{\"evidence\": [{\"id\": \"zg-ear-x1-link\", \"title\": \"连接\", \"text\": \"蓝牙版本是 5.3，打开盒盖就能和手机配对。\", \"sku\": \"zg-ear-x1\", \"brand\": \"掌柜示例\", \"model\": \"X1\", \"score\": 6.0}, {\"id\": \"zg-ear-x1-charge\", \"title\": \"充电\", \"text\": \"耳机从没电到充满大约需要 40 分钟。\", \"sku\": \"zg-ear-x1\", \"brand\": \"掌柜示例\", \"model\": \"X1\", \"score\": 1.0}], \"meta\": {\"strategy\": \"sparse\", \"embedding\": \"offline-bigram-64\", \"hyde_query\": \"掌柜示例耳机 X1 的蓝牙版本\", \"hyde_used\": false, \"reranker\": \"local-term-overlap\", \"rerank_degraded\": false, \"rerank_error\": \"\", \"bge_error\": \"\", \"duration_ms\": 3.635, \"candidate_counts\": {\"sparse\": 2, \"dense\": 4, \"hyde\": 0}}}"
+    },
+    {
+      "step": "bad_arguments",
+      "tool": "lookup_product_evidence",
+      "is_error": true,
+      "text": "Error executing tool lookup_product_evidence: 1 validation error for lookup_product_evidenceArguments\nquery\n  Field required [type=missing, input_value={'actor_id': '小明', 'role': 'editor'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.14/v/missing"
+    },
+    {
+      "step": "process_exit",
+      "pid": 24820,
+      "returncode": 0
+    }
+  ],
+  "stderr_tail": "Tool 'lookup_product_evidence' rejected arguments: ['query']"
+}

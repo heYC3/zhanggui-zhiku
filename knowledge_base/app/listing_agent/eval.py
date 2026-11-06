@@ -53,10 +53,16 @@ def _workflow_checks(tasks: list[dict]) -> list[dict]:
                         user_id="eval-editor",
                         role="editor",
                         session_id=session_id,
+                        draft_mode="offline",
                     )
                     passed = result.get("sku") == task["expect_sku"] and bool(result.get("draft"))
                 else:
-                    result = service.start(task["query"], user_id="eval-editor", role="editor")
+                    result = service.start(
+                        task["query"],
+                        user_id="eval-editor",
+                        role="editor",
+                        draft_mode="offline",
+                    )
                     passed = result.get("status") == task["expect_status"] and not result.get("draft")
                 checks.append(
                     {
@@ -187,6 +193,7 @@ def _run_completion_config(tasks: list[dict], *, name: str, label: str, strategy
                     rerank_mode=rerank_mode,
                     skip_confirmation=skip_confirmation,
                     skip_rules=skip_rules,
+                    draft_mode="offline",
                 )
                 used_gate = started.get("status") == "awaiting_confirmation"
                 final = started

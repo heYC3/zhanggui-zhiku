@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import uuid
@@ -12,7 +13,8 @@ from langgraph.types import Command
 
 from app.listing_agent.catalog import display_name, get_product
 from app.listing_agent.checkpoints import CheckpointStore
-from app.listing_agent.ledger import Ledger
+from app.listing_agent.ledger import IdempotencyConflict, Ledger
+from app.listing_agent.llm_draft import append_telemetry, resolve_draft_mode
 from app.listing_agent.paths import runtime_dir
 from app.listing_agent.rules import Actor, validate_listing_draft
 from app.listing_agent.trace import write_trace
@@ -20,6 +22,32 @@ from app.listing_agent.workflow import build_graph
 
 
 logger = logging.getLogger("listing_agent.service")
+
+
+def _trace_usage(telemetry: dict) -> tuple[dict, str]:
+    """离线路径的 0 表示没有调用模型。模型路径缺用量时保持 null。"""
+    if telemetry.get("mode") != "llm":
+        return (
+            {
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "cost": 0,
+                "usage_known": True,
+                "usage_source": "not_called",
+            },
+            "默认草稿器不调用付费模型，用量和费用记 0。",
+        )
+    return (
+        {
+            "prompt_tokens": telemetry.get("prompt_tokens"),
+            "completion_tokens": telemetry.get("completion_tokens"),
+            "total_tokens": telemetry.get("total_tokens"),
+            "cost": telemetry.get("cost"),
+            "usage_known": telemetry.get("usage_known"),
+            "usage_source": telemetry.get("usage_source"),
+        },
+        telemetry.get("usage_note") or "",
+    )
 
 
 class ListingError(Exception):
@@ -39,12 +67,19 @@ def _now() -> str:
 
 
 class ListingService:
-    def __init__(self, runtime: Path | None = None):
+    def __init__(self, runtime: Path | None = None, llm_client=None, llm_clients=None):
         self.runtime = Path(runtime or runtime_dir())
         self.runtime.mkdir(parents=True, exist_ok=True)
+        self.llm_client = llm_client
+        self.llm_clients = llm_clients
         self.ledger = Ledger(self.runtime / "ledger.sqlite3")
         self.checkpoints = CheckpointStore(self.runtime / "checkpoints.pkl")
-        self.graph = build_graph(self.checkpoints.saver, self.ledger)
+        self.graph = build_graph(
+            self.checkpoints.saver,
+            self.ledger,
+            llm_client=llm_client,
+            llm_clients=llm_clients,
+        )
 
     def close(self) -> None:
         if getattr(self, "_closed", False):
@@ -65,36 +100,68 @@ class ListingService:
         strategy: str = "rrf_hyde",
         skip_confirmation: bool = False,
         skip_rules: bool = False,
+        org_id: str = "",
+        draft_mode: str | None = None,
     ) -> dict:
         query = (query or "").strip()
         if not query:
             raise ListingError("先写你要做的商品和平台")
         if role not in {"editor", "viewer"}:
             raise ListingError("身份只能是编辑或查看")
-        if idempotency_key:
-            existing = self.ledger.find_task_by_key(idempotency_key)
-            if existing:
-                return self.snapshot(existing)
-
+        try:
+            mode = resolve_draft_mode(draft_mode)
+        except ValueError as exc:
+            raise ListingError(str(exc)) from exc
+        org_id = org_id or ""
         task_id = uuid.uuid4().hex
-        session_id = session_id or uuid.uuid4().hex
-        self.ledger.create_task(
-            {
-                "task_id": task_id,
-                "session_id": session_id,
-                "idempotency_key": idempotency_key or task_id,
-                "user_id": user_id,
-                "role": role,
-                "platform": platform,
-                "query": query,
-            }
-        )
-        history = self.ledger.history_texts(session_id)
+        if session_id:
+            try:
+                self.ledger.claim_session(session_id, user_id, org_id)
+            except PermissionError as exc:
+                raise ListingError("没有这条会话", 404) from exc
+        session_for_task = session_id or uuid.uuid4().hex
+        scoped_key = idempotency_key or task_id
+        task_row = {
+            "task_id": task_id,
+            "session_id": session_for_task,
+            "idempotency_key": f"{org_id}|{user_id}|start_task|{scoped_key}",
+            "user_id": user_id,
+            "role": role,
+            "platform": platform,
+            "query": query,
+            "org_id": org_id,
+        }
+        if idempotency_key:
+            digest = hashlib.sha256(
+                json.dumps(
+                    {
+                        "query": query,
+                        "platform": platform,
+                        "session_id": session_id or "",
+                        "draft_mode": mode,
+                    },
+                    ensure_ascii=False,
+                    sort_keys=True,
+                ).encode("utf-8")
+            ).hexdigest()
+            try:
+                existing = self.ledger.reserve_idempotency(
+                    org_id, user_id, "start_task", idempotency_key, digest, task_row
+                )
+            except IdempotencyConflict as exc:
+                raise ListingError(str(exc), 409) from exc
+            if existing:
+                return self.snapshot_for(existing, user_id)
+        else:
+            self.ledger.create_task(task_row)
+        if not session_id:
+            self.ledger.claim_session(session_for_task, user_id, org_id)
+        history = self.ledger.history_texts(session_for_task)
         self._invoke(
             task_id,
             {
                 "task_id": task_id,
-                "session_id": session_id,
+                "session_id": session_for_task,
                 "user_id": user_id,
                 "role": role,
                 "platform": platform,
@@ -103,20 +170,21 @@ class ListingService:
                 "strategy": strategy,
                 "rerank_mode": rerank_mode,
                 "draft_policy": "template-draft-conservative",
+                "draft_mode": mode,
                 "inject_write_unknown": bool(inject_write_unknown),
                 "skip_confirmation": bool(skip_confirmation),
                 "skip_rules": bool(skip_rules),
             },
         )
         current = self.snapshot(task_id)
-        self.ledger.append_message(session_id, query, current.get("sku") or "")
+        self.ledger.append_message(session_for_task, query, current.get("sku") or "")
         return self.snapshot(task_id)
 
     def confirm(self, task_id: str, user_id: str, role: str, draft_version: int) -> dict:
-        row = self._row(task_id)
+        row = self._owned_row(task_id, user_id)
         self._ensure_waiting(row)
-        if role != "editor" or user_id != row["user_id"]:
-            raise ListingError("只有创建这条任务的编辑可以确认写入", 403)
+        if role != "editor":
+            raise ListingError("当前身份不能确认写入", 403)
         if int(draft_version) != int(row["draft_version"] or 0):
             raise ListingError("草稿版本已经变了，请刷新后再确认")
         validation = _loads(row["validation_json"], {})
@@ -138,8 +206,8 @@ class ListingService:
         return self.snapshot(task_id)
 
     def reject(self, task_id: str, user_id: str, role: str, reason: str = "") -> dict:
-        row = self._row(task_id)
-        self._ensure_owner_editor(row, user_id, role)
+        row = self._owned_row(task_id, user_id)
+        self._ensure_editor(role)
         self._ensure_waiting(row)
         self._invoke(
             task_id,
@@ -148,8 +216,8 @@ class ListingService:
         return self.snapshot(task_id)
 
     def cancel(self, task_id: str, user_id: str, role: str) -> dict:
-        row = self._row(task_id)
-        self._ensure_owner_editor(row, user_id, role)
+        row = self._owned_row(task_id, user_id)
+        self._ensure_editor(role)
         if row["status"] in {"written", "written_checked"}:
             raise ListingError("已经写入的草稿不能用取消来删除")
         self.ledger.update_task(task_id, cancelled=1)
@@ -171,8 +239,8 @@ class ListingService:
         title: str,
         bullets: list[str],
     ) -> dict:
-        row = self._row(task_id)
-        self._ensure_owner_editor(row, user_id, role)
+        row = self._owned_row(task_id, user_id)
+        self._ensure_editor(role)
         self._ensure_waiting(row)
         if int(base_version) != int(row["draft_version"] or 0):
             raise ListingError("草稿版本已经变了，请刷新后再改")
@@ -200,8 +268,8 @@ class ListingService:
         return self.snapshot(task_id)
 
     def reconcile(self, task_id: str, user_id: str, role: str, found: bool) -> dict:
-        row = self._row(task_id)
-        self._ensure_owner_editor(row, user_id, role)
+        row = self._owned_row(task_id, user_id)
+        self._ensure_editor(role)
         if row["status"] != "write_unknown":
             raise ListingError("只有写入结果不明时才需要人工核对")
         version = int(row["draft_version"] or 0)
@@ -399,7 +467,19 @@ class ListingService:
                         "name": "generate_draft",
                         "label": "草稿生成",
                         "phase": "end",
-                        "detail": draft.get("policy") or "",
+                        "detail": draft.get("fallback_note") or draft.get("policy") or "",
+                    },
+                )
+            )
+        elif values.get("status") == "draft_failed":
+            events.append(
+                (
+                    "node",
+                    {
+                        "name": "generate_draft",
+                        "label": "草稿生成",
+                        "phase": "end",
+                        "detail": values.get("clarify_question") or "草稿没有生成",
                     },
                 )
             )
@@ -424,6 +504,7 @@ class ListingService:
                         "name": "wait_human",
                         "label": "等待确认",
                         "phase": "pause",
+                        "detail": "点页面上的「确认写入」才会进台账",
                         "version": values.get("draft_version") or 0,
                     },
                 )
@@ -468,6 +549,8 @@ class ListingService:
         row = self.ledger.get_task_row(task_id) or {}
         retrieval = values.get("retrieval") or {}
         draft = values.get("draft") or {}
+        telemetry = values.get("draft_telemetry") or {}
+        usage, usage_note = _trace_usage(telemetry)
         record = {
             "trace_id": task_id,
             "ended_at": _now(),
@@ -478,18 +561,43 @@ class ListingService:
             "strategy": retrieval.get("strategy", ""),
             "embedding": retrieval.get("embedding", ""),
             "reranker": retrieval.get("reranker", ""),
-            "draft_policy": draft.get("policy", ""),
+            "draft_policy": draft.get("policy", "") or telemetry.get("mode", ""),
+            "draft_mode": telemetry.get("mode", ""),
+            "model": telemetry.get("model"),
+            "model_name_source": telemetry.get("model_name_source"),
+            "parameters": telemetry.get("parameters"),
+            "prompt_version": telemetry.get("prompt_version"),
+            "failure_type": telemetry.get("failure_type"),
             "spans": [
                 {"name": "retrieve_evidence", "duration_ms": retrieval.get("duration_ms", 0)},
-                {"name": "generate_draft", "duration_ms": draft.get("duration_ms", 0)},
+                {
+                    "name": "generate_draft",
+                    "duration_ms": telemetry.get("duration_ms", draft.get("duration_ms", 0)),
+                },
             ],
-            "usage": {"prompt_tokens": 0, "completion_tokens": 0, "cost": 0},
-            "usage_note": "默认草稿器不调用付费模型，用量和费用记 0。",
+            "usage": usage,
+            "usage_note": usage_note,
         }
         try:
             write_trace(self.runtime, record)
+            if telemetry:
+                append_telemetry(self.runtime, {"trace_id": task_id, **telemetry})
         except Exception:
             logger.exception("trace 写入失败，task_id=%s", task_id)
+
+    def snapshot_for(self, task_id: str, user_id: str) -> dict:
+        self._owned_row(task_id, user_id)
+        return self.snapshot(task_id)
+
+    def _owned_row(self, task_id: str, user_id: str) -> dict:
+        row = self.ledger.get_task_row(task_id)
+        if row is None or row.get("user_id") != user_id:
+            raise ListingError("没有这条任务", 404)
+        return row
+
+    def _ensure_editor(self, role: str) -> None:
+        if role != "editor":
+            raise ListingError("当前身份不能修改这条任务", 403)
 
     def _row(self, task_id: str) -> dict:
         row = self.ledger.get_task_row(task_id)
@@ -502,10 +610,6 @@ class ListingService:
             raise ListingError("任务已取消")
         if row["status"] != "awaiting_confirmation":
             raise ListingError("现在不是等待确认的状态")
-
-    def _ensure_owner_editor(self, row: dict, user_id: str, role: str) -> None:
-        if role != "editor" or user_id != row["user_id"]:
-            raise ListingError("只有创建这条任务的编辑可以操作", 403)
 
     @staticmethod
     def _interrupt_list(state_snapshot) -> list:

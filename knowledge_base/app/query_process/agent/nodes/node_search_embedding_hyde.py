@@ -45,17 +45,16 @@ class NodeSearchEmbeddingHyde(NodeBase):
             hyde_doc = self._step_1_create_hyde_doc(rewritten_query)
 
             # 3、用“重写问题 + 假设文档”检索切片
-            res = self._step_2_search_embedding_hyde(
+            hits = self._step_2_search_embedding_hyde(
                 rewritten_query=rewritten_query,
                 hyde_doc=hyde_doc,
                 item_names=item_names,
                 top_k=5,
             )
 
-            # 4、结果封装
             add_done_task(state["session_id"], self.name)
             return {
-                "hyde_embedding_chunks": res[0] if res else [],
+                "hyde_embedding_chunks": hits,
                 "hyde_doc": hyde_doc,
             }
 
@@ -120,59 +119,20 @@ class NodeSearchEmbeddingHyde(NodeBase):
         """
 
         try:
-            # 1、拼接查询与假设文档，形成更丰富的语义上下文
-            # 这里把用户问题 + 假设答案拼在一起生成向量，相当于：
-            # 既保留了用户的原始意图（rewritten_query）
-            # 又增强了语义丰富度（hyde_doc）
-            combined_text = rewritten_query + " " + hyde_doc
-            logger.info(f"步骤2: 拼接 Query + HyDE Doc, 总长度: {len(combined_text)}")
+            from app.evidence.store import as_query_hit, retrieve_product_evidence
 
-            # 2、生成向量 (Dense + Sparse)
-            logger.info("步骤2: 正在生成混合向量 (Embedding)...")
-            embeddings = generate_embeddings([combined_text])
-
-            dense_vec = embeddings.get("dense")[0]
-            sparse_vec = embeddings.get("sparse")[0]
-
-            # 3. 获取Milvus的集合
-            collection_name = milvus_config.chunks_collection
-            logger.info(f"步骤2: 准备在集合 '{collection_name}' 中执行混合检索")
-
-            # 4、处理 item_names 中的引号，防止注入或语法错误
-            expr = None
-            if item_names:
-                quoted = ", ".join(f'"{v}"' for v in item_names)
-                expr = f"item_name in [{quoted}]"
-                logger.info(f"步骤2: 过滤条件: {expr}")
-            else:
-                logger.info("步骤2: 未指定商品名过滤，将全库检索")
-
-            # 5、构造Milvus混合搜索请求对象
-            reqs = create_hybrid_search_requests(
-                dense_vector = dense_vec,
-                sparse_vector = sparse_vec,
-                expr = expr,
-                limit = req_limit,
-            )
-
-            # 6、执行混合向量检索
-            logger.info("步骤2: 开始执行 Milvus 混合检索...")
-            client = get_milvus_client()
-            res = hybrid_search(
-                client=client,
-                collection_name=collection_name,
-                reqs=reqs,
-                ranker_weights=ranker_weights,
-                norm_score=norm_score,
+            product_id = item_names[0] if item_names else None
+            combined_text = (rewritten_query or "") + " " + (hyde_doc or "")
+            found = retrieve_product_evidence(
+                combined_text,
+                product_id=product_id,
+                strategy="rrf_hyde",
                 limit=top_k,
-                output_fields=list(output_fields),
             )
-
-            return res
-
-        except Exception as e:
-            logger.error(f"步骤2: 检索过程发生异常: {e}")
-            raise e
+            return [as_query_hit(row) for row in found["evidence"]]
+        except Exception as exc:
+            logger.error(f"步骤2: 检索过程发生异常: {exc}")
+            raise
 
 if __name__ == "__main__":
 

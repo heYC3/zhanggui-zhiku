@@ -6,6 +6,7 @@
 
 ```powershell
 pip install -r requirements-listing.txt
+python -m unittest discover -s test/listing -v
 python -m app.listing_agent
 ```
 

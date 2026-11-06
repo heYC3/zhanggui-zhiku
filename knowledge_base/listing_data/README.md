@@ -9,3 +9,5 @@
 ```powershell
 python -m app.listing_agent.eval
 ```
+
+这条命令只走原句模板。要拿同一批草稿题对照真实模型，另跑 `python -m app.listing_agent.llm_compare`。模型没返回用量时，费用留空。

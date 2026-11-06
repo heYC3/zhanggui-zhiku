@@ -14,7 +14,8 @@ from typing_extensions import TypedDict
 
 from app.listing_agent.catalog import chunks_for, display_name, get_product, resolve_product
 from app.listing_agent.drafting import build_draft
-from app.listing_agent.retrieve import search_evidence
+from app.evidence.store import retrieve_product_evidence
+from app.listing_agent.llm_draft import generate_draft_with_fallback, offline_telemetry, resolve_draft_mode
 from app.listing_agent.rules import Actor, validate_listing_draft
 
 
@@ -29,6 +30,8 @@ class ListingState(TypedDict, total=False):
     strategy: str
     rerank_mode: str
     draft_policy: str
+    draft_mode: str
+    draft_telemetry: dict
     inject_write_unknown: bool
     skip_confirmation: bool
     skip_rules: bool
@@ -131,8 +134,11 @@ def _write(state: ListingState, ledger) -> dict:
     return {"write_receipt": stored, "validation": validation}
 
 
-def build_graph(checkpointer, ledger):
-    """编译带检查点的 Listing 图。ledger 用来做写入幂等。"""
+def build_graph(checkpointer, ledger, llm_client=None, llm_clients=None):
+    """编译带检查点的 Listing 图。ledger 用来做写入幂等。
+
+    llm_client 只在 draft_mode=llm 时使用。不传就按环境变量连接真实模型。
+    """
 
     def resolve_node(state: ListingState) -> dict:
         found = resolve_product(state.get("query") or "", state.get("history") or [])
@@ -163,7 +169,7 @@ def build_graph(checkpointer, ledger):
         }
 
     def retrieve_node(state: ListingState) -> dict:
-        result = search_evidence(
+        result = retrieve_product_evidence(
             state.get("query") or "",
             sku=state.get("sku") or None,
             strategy=state.get("strategy") or "rrf_hyde",
@@ -174,6 +180,10 @@ def build_graph(checkpointer, ledger):
             sheet = chunks_for(state["sku"])[:5]
             for row in sheet:
                 row["score"] = 0.01
+                row["chunk_id"] = row["id"]
+                row["source"] = f"listing_data/products/{state['sku']}.json#{row['id']}"
+                row["sku"] = state["sku"]
+                row["product_id"] = state["sku"]
             result["evidence"] = sheet
             result["meta"]["fallback"] = "whole_product_sheet"
         return {"evidence": result["evidence"], "retrieval": result["meta"]}
@@ -187,6 +197,44 @@ def build_graph(checkpointer, ledger):
         }
 
     def draft_node(state: ListingState) -> dict:
+        try:
+            mode = resolve_draft_mode(state.get("draft_mode") or "offline")
+        except ValueError as exc:
+            return {
+                "status": "draft_failed",
+                "clarify_question": str(exc),
+                "draft_telemetry": {
+                    "mode": "llm",
+                    "failure_type": "transport_error",
+                    "usage_known": False,
+                    "cost": None,
+                    "prompt_tokens": None,
+                    "completion_tokens": None,
+                    "message": str(exc),
+                },
+            }
+        if mode == "llm":
+            # 模型失败会换另一家，再不行用知识库原句。规则和人工确认仍在后面。
+            outcome = generate_draft_with_fallback(
+                state.get("query") or "",
+                state.get("sku") or "",
+                state.get("evidence") or [],
+                state.get("platform") or "amazon",
+                client=llm_client,
+                clients=llm_clients,
+            )
+            if outcome.draft is None:
+                return {
+                    "status": "draft_failed",
+                    "clarify_question": outcome.message,
+                    "draft_telemetry": outcome.telemetry,
+                }
+            return {
+                "draft": outcome.draft,
+                "draft_version": 1,
+                "status": "drafted",
+                "draft_telemetry": outcome.telemetry,
+            }
         draft = build_draft(
             state.get("query") or "",
             state.get("sku") or "",
@@ -194,7 +242,12 @@ def build_graph(checkpointer, ledger):
             state.get("draft_policy") or "template-draft-conservative",
         )
         draft["platform"] = state.get("platform") or "amazon"
-        return {"draft": draft, "draft_version": 1, "status": "drafted"}
+        return {
+            "draft": draft,
+            "draft_version": 1,
+            "status": "drafted",
+            "draft_telemetry": offline_telemetry(draft["duration_ms"]),
+        }
 
     def validate_node(state: ListingState) -> dict:
         if state.get("skip_rules"):
@@ -270,6 +323,11 @@ def build_graph(checkpointer, ledger):
             return "generate_draft"
         return "finish"
 
+    def after_draft(state: ListingState) -> str:
+        if state.get("status") == "drafted" and state.get("draft"):
+            return "validate_draft"
+        return "finish"
+
     def after_wait(state: ListingState) -> str:
         if state.get("decision") == "confirm":
             return "write_listing"
@@ -296,7 +354,11 @@ def build_graph(checkpointer, ledger):
         after_check,
         {"generate_draft": "generate_draft", "finish": "finish"},
     )
-    graph.add_edge("generate_draft", "validate_draft")
+    graph.add_conditional_edges(
+        "generate_draft",
+        after_draft,
+        {"validate_draft": "validate_draft", "finish": "finish"},
+    )
     graph.add_edge("validate_draft", "wait_human")
     graph.add_conditional_edges(
         "wait_human",
