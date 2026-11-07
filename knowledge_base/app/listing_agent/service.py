@@ -21,6 +21,7 @@ from app.listing_agent.paths import runtime_dir
 from app.listing_agent.rules import Actor, validate_listing_draft
 from app.listing_agent.trace import write_trace
 from app.listing_agent.workflow import build_graph
+from app.listing_agent.task_lock import serialized
 
 
 logger = logging.getLogger("listing_agent.service")
@@ -93,23 +94,47 @@ def _now() -> str:
 
 
 class ListingService:
-    def __init__(self, runtime: Path | None = None, llm_client=None, llm_clients=None):
+    def __init__(self, runtime: Path | None = None, llm_client=None, llm_clients=None, shop_adapter=None, shop_backend: str | None = None):
+        from app.listing_agent.shopify_adapter import ShopifyAdapter, load_env_file
+        load_env_file()
         self.runtime = Path(runtime or runtime_dir())
         self.runtime.mkdir(parents=True, exist_ok=True)
         self.llm_client = llm_client
         self.llm_clients = llm_clients
         self.ledger = Ledger(self.runtime / "ledger.sqlite3")
         self.checkpoints = CheckpointStore(self.runtime / "checkpoints.pkl")
+        self.shop_backend = shop_backend or ("shopify" if shop_adapter else os.getenv("LISTING_SHOP_BACKEND", "local"))
+        if self.shop_backend not in {"local", "shopify"}:
+            self.close()
+            raise ListingError("LISTING_SHOP_BACKEND 只能是 local 或 shopify")
+        self.shop_writer = None
+        if self.shop_backend == "local":
+            table = self.ledger._conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='write_intents'").fetchone()
+            if table and self.ledger._conn.execute("SELECT 1 FROM write_intents LIMIT 1").fetchone():
+                self.close()
+                raise ListingError("当前运行目录含 Shopify 写入意图，请使用 shopify 模式恢复，或为本地演示选择其他运行目录")
+        if self.shop_backend == "shopify":
+            from app.listing_agent.shop_write import ShopWriter
+            try:
+                self.shop_writer = ShopWriter(self.ledger, shop_adapter or ShopifyAdapter(), self.runtime)
+            except Exception:
+                self.close()
+                raise
         self.graph = build_graph(
             self.checkpoints.saver,
             self.ledger,
             llm_client=llm_client,
             llm_clients=llm_clients,
+            shop_writer=self.shop_writer,
         )
+        if self.shop_writer:
+            self.shop_writer.recover()
 
     def close(self) -> None:
         if getattr(self, "_closed", False):
             return
+        if getattr(self, "shop_writer", None):
+            self.shop_writer.close()
         self.ledger.close()
         self.checkpoints.close()
         self._closed = True
@@ -207,13 +232,19 @@ class ListingService:
         self.ledger.append_message(session_for_task, query, current.get("sku") or "")
         return self.snapshot(task_id)
 
+    @serialized
     def confirm(self, task_id: str, user_id: str, role: str, draft_version: int) -> dict:
         row = self._owned_row(task_id, user_id)
-        self._ensure_waiting(row)
         if role != "editor":
             raise ListingError("当前身份不能确认写入", 403)
         if int(draft_version) != int(row["draft_version"] or 0):
             raise ListingError("草稿版本已经变了，请刷新后再确认")
+        if self.shop_writer:
+            intent = self.shop_writer.get(task_id, draft_version)
+            if intent:
+                self.shop_writer.reconcile(intent)
+                return self.snapshot(task_id)
+        self._ensure_waiting(row)
         validation = _loads(row["validation_json"], {})
         if not validation.get("ok"):
             raise ListingError("规则没通过，不能写入")
@@ -235,6 +266,7 @@ class ListingService:
         )
         return self.snapshot(task_id)
 
+    @serialized
     def reject(self, task_id: str, user_id: str, role: str, reason: str = "") -> dict:
         row = self._owned_row(task_id, user_id)
         self._ensure_editor(role)
@@ -245,11 +277,14 @@ class ListingService:
         )
         return self.snapshot(task_id)
 
+    @serialized
     def cancel(self, task_id: str, user_id: str, role: str) -> dict:
         row = self._owned_row(task_id, user_id)
         self._ensure_editor(role)
         if row["status"] in {"written", "written_checked"}:
             raise ListingError("已经写入的草稿不能用取消来删除")
+        if self.shop_writer and self.shop_writer.get(task_id, row["draft_version"]):
+            raise ListingError("已有外部写入意图，请先核对远端结果，不能用取消抹掉记录")
         self.ledger.update_task(task_id, cancelled=1)
         self._add_event(
             task_id,
@@ -270,6 +305,7 @@ class ListingService:
             self.ledger.update_task(task_id, status="cancelled")
         return self.snapshot(task_id)
 
+    @serialized
     def update_draft(
         self,
         task_id: str,
@@ -282,6 +318,8 @@ class ListingService:
         row = self._owned_row(task_id, user_id)
         self._ensure_editor(role)
         self._ensure_waiting(row)
+        if self.shop_writer and self.shop_writer.get(task_id, row["draft_version"]):
+            raise ListingError("已有外部写入意图，不能再编辑该版本")
         if int(base_version) != int(row["draft_version"] or 0):
             raise ListingError("草稿版本已经变了，请刷新后再改")
         draft = dict(_loads(row["draft_json"], {}))
@@ -307,9 +345,23 @@ class ListingService:
         )
         return self.snapshot(task_id)
 
-    def reconcile(self, task_id: str, user_id: str, role: str, found: bool) -> dict:
+    @serialized
+    def reconcile(self, task_id: str, user_id: str, role: str, found: bool | None = None) -> dict:
         row = self._owned_row(task_id, user_id)
         self._ensure_editor(role)
+        if self.shop_writer:
+            intent = self.shop_writer.get(task_id, row["draft_version"])
+            if intent is None:
+                raise ListingError("还没有外部写入意图，无需核对")
+            self.shop_writer.reconcile(intent)
+            current = self.snapshot(task_id)
+            self.ledger.add_event(task_id, "reconcile", {
+                "name": "reconcile", "phase": "end", "status": current["status"],
+                "detail": (current.get("receipt") or {}).get("message", ""),
+            })
+            return self.snapshot(task_id)
+        if found is None:
+            raise ListingError("离线模拟核对需要明确指定 found")
         if row["status"] != "write_unknown":
             raise ListingError("只有写入结果不明时才需要人工核对")
         version = int(row["draft_version"] or 0)
@@ -370,6 +422,8 @@ class ListingService:
             "platform": row["platform"],
             "query": row["query"],
             "status": row["status"],
+            "shop_backend": self.shop_backend,
+            "store_domain": self.shop_writer.adapter.store_domain if self.shop_writer else None,
             "sku": row["sku"],
             "product_name": display_name(product) if product else "",
             "clarify_question": row["clarify_question"] or "",
@@ -409,6 +463,10 @@ class ListingService:
             interrupts = self._interrupt_list(state_snapshot)
             self._persist(task_id, values, interrupts)
         except Exception as exc:
+            intent = self.shop_writer.get(task_id, self._row(task_id)["draft_version"]) if self.shop_writer else None
+            if intent:
+                self.shop_writer.reconcile(intent)
+                return
             logger.exception("Listing 流程失败，task_id=%s", task_id)
             self.ledger.update_task(task_id, status="failed", clarify_question=str(exc))
             self._add_event(task_id, "error", {"name": "failed", "phase": "end", "detail": str(exc)})
@@ -426,6 +484,12 @@ class ListingService:
         evidence = values.get("evidence") or []
         receipt = values.get("write_receipt")
         version = values.get("confirm_version") or values.get("draft_version") or 0
+        if self.shop_writer:
+            intent = self.shop_writer.get(task_id, version)
+            if intent:
+                from app.listing_agent.shop_write import _TASK_STATUS
+                status = _TASK_STATUS[intent["state"]]
+                receipt = _loads(intent["receipt_json"], receipt)
         self.ledger.update_task(
             task_id,
             status=status,

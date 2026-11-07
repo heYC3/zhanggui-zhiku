@@ -6,6 +6,7 @@ on:
 
 env:
   PYTHON_DOTENV_DISABLED: "1"
+  LISTING_SHOP_BACKEND: "local"
 
 jobs:
   test:

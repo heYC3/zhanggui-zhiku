@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1154" height="875" viewBox="0 0 1154 875" role="img" aria-label="掌柜智库 · 从资料到可确认的执行">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10Z" fill="#94a3b8"/></marker></defs>
+<rect x="0" y="0" width="1154" height="875" rx="0" fill="#f8fafc" stroke="none"/>
+<text x="34" y="45" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="26" font-weight="700" fill="#0f172a">掌柜智库 · 从资料到可确认的执行</text>
+<text x="34" y="76" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="14" font-weight="400" fill="#475569">实现结构示意 · 三条工作流与共享证据接口 · 2026-11-08</text>
+<rect x="34" y="105" width="338" height="66" rx="12" fill="#0f172a" stroke="none"/>
+<text x="52" y="134" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="19" font-weight="700" fill="#ffffff">01  资料导入</text>
+<text x="52" y="156" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="13" font-weight="400" fill="#cbd5e1">8000 /import.html</text>
+<rect x="34" y="191" width="338" height="64" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="50" y="217" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="17" font-weight="700" fill="#0f172a">PDF / Markdown</text>
+<text x="50" y="240" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="12" font-weight="400" fill="#475569">PDF 经 MinerU；Markdown 直接进入处理</text>
+<path d="M203,256 V271" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="34" y="274" width="338" height="64" rx="12" fill="#eaf2ff" stroke="#cbd5e1"/>
+<text x="50" y="300" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="17" font-weight="700" fill="#0f172a">图片处理与正文切片</text>
+<text x="50" y="323" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="12" font-weight="400" fill="#475569">图片原件 + 视觉摘要；本机哈希 URL</text>
+<path d="M203,339 V354" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="34" y="357" width="338" height="64" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="50" y="383" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="17" font-weight="700" fill="#0f172a">识别产品与来源</text>
+<text x="50" y="406" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="12" font-weight="400" fill="#475569">产品名、标题、原文与支持切片</text>
+<path d="M203,422 V437" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="34" y="440" width="338" height="64" rx="12" fill="#eaf2ff" stroke="#cbd5e1"/>
+<text x="50" y="466" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="17" font-weight="700" fill="#0f172a">BGE-M3 编码</text>
+<text x="50" y="489" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="12" font-weight="400" fill="#475569">正文和产品名生成稠密 / 稀疏向量</text>
+<path d="M203,505 V520" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="34" y="523" width="338" height="64" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="50" y="549" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="17" font-weight="700" fill="#0f172a">Milvus 手册证据</text>
+<text x="50" y="572" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="12" font-weight="400" fill="#475569">问答与 Listing 共用 evidence/store.py</text>
+<rect x="34" y="606" width="338" height="64" rx="12" fill="#eaf2ff" stroke="#cbd5e1"/>
+<text x="50" y="632" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="17" font-weight="700" fill="#0f172a">图片后端可选</text>
+<text x="50" y="655" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="12" font-weight="400" fill="#475569">默认本机文件；MinIO 本轮未验收</text>
+<rect x="408" y="105" width="338" height="66" rx="12" fill="#0f172a" stroke="none"/>
+<text x="426" y="134" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="19" font-weight="700" fill="#ffffff">02  RAG 问答</text>
+<text x="426" y="156" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="13" font-weight="400" fill="#cbd5e1">8001 /chat.html</text>
+<rect x="408" y="191" width="338" height="64" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="424" y="217" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="17" font-weight="700" fill="#0f172a">确认型号与显式历史</text>
+<text x="424" y="240" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="12" font-weight="400" fill="#475569">缺型号先澄清；多产品分别保留证据</text>
+<path d="M577,256 V271" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="408" y="274" width="338" height="64" rx="12" fill="#eaf2ff" stroke="#cbd5e1"/>
+<text x="424" y="300" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="17" font-weight="700" fill="#0f172a">原问题 / HyDE 召回</text>
+<text x="424" y="323" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="12" font-weight="400" fill="#475569">向量检索 + 产品范围内的词语召回</text>
+<path d="M577,339 V354" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="408" y="357" width="338" height="64" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="424" y="383" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="17" font-weight="700" fill="#0f172a">RRF 融合与重排</text>
+<text x="424" y="406" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="12" font-weight="400" fill="#475569">保留原文；展开长表格的相关行</text>
+<path d="M577,422 V437" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="408" y="440" width="338" height="64" rx="12" fill="#eaf2ff" stroke="#cbd5e1"/>
+<text x="424" y="466" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="17" font-weight="700" fill="#0f172a">装入实际生成上下文</text>
+<text x="424" y="489" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="12" font-weight="400" fill="#475569">单独记录 context_docs，区分候选</text>
+<path d="M577,505 V520" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="408" y="523" width="338" height="64" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="424" y="549" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="17" font-weight="700" fill="#0f172a">模型流式回答</text>
+<text x="424" y="572" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="12" font-weight="400" fill="#475569">返回正文依据与上下文中的图片</text>
+<rect x="408" y="606" width="338" height="64" rx="12" fill="#eaf2ff" stroke="#cbd5e1"/>
+<text x="424" y="632" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="17" font-weight="700" fill="#0f172a">可选联网分支</text>
+<text x="424" y="655" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="12" font-weight="400" fill="#475569">默认关闭；手册验收不使用联网</text>
+<rect x="782" y="105" width="338" height="66" rx="12" fill="#0f172a" stroke="none"/>
+<text x="800" y="134" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="19" font-weight="700" fill="#ffffff">03  Listing Agent</text>
+<text x="800" y="156" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="13" font-weight="400" fill="#cbd5e1">8002 /listing.html</text>
+<rect x="782" y="191" width="338" height="64" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="798" y="217" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="17" font-weight="700" fill="#0f172a">确认商品与取证</text>
+<text x="798" y="240" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="12" font-weight="400" fill="#475569">默认自编离线资料；共享证据接口</text>
+<path d="M951,256 V271" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="782" y="274" width="338" height="64" rx="12" fill="#eaf2ff" stroke="#cbd5e1"/>
+<text x="798" y="300" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="17" font-weight="700" fill="#0f172a">生成受约束草稿</text>
+<text x="798" y="323" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="12" font-weight="400" fill="#475569">原句模板 / 可选真实模型</text>
+<path d="M951,339 V354" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="782" y="357" width="338" height="64" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="798" y="383" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="17" font-weight="700" fill="#0f172a">结构与规则校验</text>
+<text x="798" y="406" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="12" font-weight="400" fill="#475569">来源原句、型号边界、缺口提示</text>
+<path d="M951,422 V437" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="782" y="440" width="338" height="64" rx="12" fill="#eaf2ff" stroke="#cbd5e1"/>
+<text x="798" y="466" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="17" font-weight="700" fill="#0f172a">人工确认</text>
+<text x="798" y="489" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="12" font-weight="400" fill="#475569">服务端鉴权、任务归属与草稿版本</text>
+<path d="M951,505 V520" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="782" y="523" width="338" height="64" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="798" y="549" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="17" font-weight="700" fill="#0f172a">先持久化 WriteIntent</text>
+<text x="798" y="572" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="12" font-weight="400" fill="#475569">本地台账 / Shopify GraphQL DRAFT</text>
+<path d="M951,588 V603" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="782" y="606" width="338" height="64" rx="12" fill="#eaf2ff" stroke="#cbd5e1"/>
+<text x="798" y="632" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="17" font-weight="700" fill="#0f172a">独立读回与回执</text>
+<text x="798" y="655" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="12" font-weight="400" fill="#475569">未知只核对；不自动重复创建</text>
+<rect x="34" y="711" width="1086" height="130" rx="12" fill="#fff7ed" stroke="#fed7aa"/>
+<text x="54" y="741" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="18" font-weight="700" fill="#9a3412">验证与恢复边界</text>
+<text x="54" y="770" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="15" font-weight="400" fill="#7c2d12">公开合成 100 题 = 开发 62 + 冻结 38；闭环计分 16 题，检索另计 22 题。</text>
+<text x="54" y="797" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="15" font-weight="400" fill="#7c2d12">私有手册 5 本 / 54 题；首次验收只取新 24 题。检查点、操作意图与台账使用 SQLite。</text>
+<text x="54" y="824" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="14" font-weight="400" fill="#7c2d12">Shopify 只验指定开发店 DRAFT；故障窗口为离线模拟。完整 RAG 容器部署未作本轮验收。</text>
+</svg>

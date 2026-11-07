@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1154" height="650" viewBox="0 0 1154 650" role="img" aria-label="MCP · 官方客户端真实调用记录">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10Z" fill="#94a3b8"/></marker></defs>
+<rect x="0" y="0" width="1154" height="650" rx="0" fill="#f8fafc" stroke="none"/>
+<text x="34" y="45" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="26" font-weight="700" fill="#0f172a">MCP · 官方客户端真实调用记录</text>
+<text x="34" y="76" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="14" font-weight="400" fill="#475569">调用记录摘要图，非终端截图 · mcp==2.3.0 · stdio NDJSON · 2026-11-08</text>
+<rect x="34" y="108" width="1086" height="69" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="54" y="150" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="25" font-weight="700" fill="#2563eb">01</text>
+<text x="112" y="136" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="18" font-weight="700" fill="#0f172a">initialize</text>
+<text x="112" y="160" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="14" font-weight="400" fill="#475569">zhanggui-listing 0.1.0 · protocol 2025-11-25</text>
+<text x="851" y="149" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="16" font-weight="700" fill="#0f766e">初始化成功</text>
+<rect x="34" y="195" width="1086" height="69" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="54" y="237" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="25" font-weight="700" fill="#2563eb">02</text>
+<text x="112" y="223" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="18" font-weight="700" fill="#0f172a">list_tools</text>
+<text x="112" y="247" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="14" font-weight="400" fill="#475569">lookup_product_evidence / validate_listing_draft</text>
+<text x="851" y="236" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="16" font-weight="700" fill="#0f766e">发现 2 个工具</text>
+<rect x="34" y="282" width="1086" height="69" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="54" y="324" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="25" font-weight="700" fill="#2563eb">03</text>
+<text x="112" y="310" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="18" font-weight="700" fill="#0f172a">call_tool</text>
+<text x="112" y="334" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="14" font-weight="400" fill="#475569">lookup_product_evidence · 自编 X1 蓝牙证据</text>
+<text x="851" y="323" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="16" font-weight="700" fill="#0f766e">is_error: false</text>
+<rect x="34" y="369" width="1086" height="69" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="54" y="411" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="25" font-weight="700" fill="#2563eb">04</text>
+<text x="112" y="397" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="18" font-weight="700" fill="#0f172a">bad_arguments</text>
+<text x="112" y="421" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="14" font-weight="400" fill="#475569">缺少必填 query，参数校验拒绝请求</text>
+<text x="851" y="410" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="16" font-weight="700" fill="#0f766e">is_error: true（预期）</text>
+<rect x="34" y="456" width="1086" height="69" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="54" y="498" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="25" font-weight="700" fill="#2563eb">05</text>
+<text x="112" y="484" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="18" font-weight="700" fill="#0f172a">process_exit</text>
+<text x="112" y="508" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="14" font-weight="400" fill="#475569">客户端会话结束，子进程正常退出</text>
+<text x="851" y="497" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="16" font-weight="700" fill="#0f766e">returncode: 0</text>
+<text x="34" y="585" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="14" font-weight="400" fill="#475569">来源：docs/assets/mcp_record_2026-11-08.json；仅移除本机路径、PID 与 stderr，未改写调用结果。</text>
+<text x="34" y="614" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="14" font-weight="400" fill="#475569">本探针实际调用查证据工具并验证坏参数；不代表已在外部桌面客户端安装，也不执行店铺写入。</text>
+</svg>

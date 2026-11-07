@@ -61,7 +61,7 @@ def _candidate_names(skus: list[str]) -> list[str]:
     return names
 
 
-def _write(state: ListingState, ledger) -> dict:
+def _write(state: ListingState, ledger, shop_writer=None) -> dict:
     task_id = state["task_id"]
     owner = state.get("user_id") or ""
     actor_id = state.get("confirm_actor") or ""
@@ -111,6 +111,12 @@ def _write(state: ListingState, ledger) -> dict:
             "validation": validation,
         }
 
+    if shop_writer is not None:
+        if state.get("skip_confirmation") or state.get("skip_rules"):
+            return {"write_receipt": {"status": "forbidden", "message": "真实店铺写入不允许跳过人工确认或规则校验"}}
+        receipt = shop_writer.write(task_id, version, draft)
+        return {"write_receipt": receipt, "validation": validation}
+
     key = f"{task_id}:{version}:write"
     if state.get("inject_write_unknown"):
         receipt = {
@@ -134,7 +140,7 @@ def _write(state: ListingState, ledger) -> dict:
     return {"write_receipt": stored, "validation": validation}
 
 
-def build_graph(checkpointer, ledger, llm_client=None, llm_clients=None):
+def build_graph(checkpointer, ledger, llm_client=None, llm_clients=None, shop_writer=None):
     """编译带检查点的 Listing 图。ledger 用来做写入幂等。
 
     llm_client 只在 draft_mode=llm 时使用。不传就按环境变量连接真实模型。
@@ -296,7 +302,7 @@ def build_graph(checkpointer, ledger, llm_client=None, llm_clients=None):
         }
 
     def write_node(state: ListingState) -> dict:
-        return _write(state, ledger)
+        return _write(state, ledger, shop_writer)
 
     def finish_node(state: ListingState) -> dict:
         receipt = state.get("write_receipt") or {}
@@ -305,6 +311,10 @@ def build_graph(checkpointer, ledger, llm_client=None, llm_clients=None):
             return {"status": "written"}
         if status == "unknown":
             return {"status": "write_unknown"}
+        if status == "conflict":
+            return {"status": "write_conflict"}
+        if status == "failed":
+            return {"status": "write_failed"}
         if status == "forbidden":
             return {"status": "confirm_rejected"}
         if state.get("decision") == "reject":

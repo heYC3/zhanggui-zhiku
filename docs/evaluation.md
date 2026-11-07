@@ -74,7 +74,7 @@
 | 检查 | 覆盖 | 运行方式 |
 | --- | --- | --- |
 | RAG合成回归：39项 | 型号边界、多产品检索、证据评分、封面与图片契约、模型初始化锁、历史库退避 | `python -m unittest discover -s test/rag -v` |
-| Listing回归：32项 | 鉴权、任务归属、确认、幂等、草稿版本、故障恢复、并发、SSE、模型替身 | `python -m unittest discover -s test/listing -v` |
+| Listing回归：61项 | 鉴权、任务归属、确认、幂等、草稿版本、故障恢复、并发、SSE、模型替身、Shopify 写入与核对模拟 | `python -m unittest discover -s test/listing -v` |
 | 冻结基线一致性 | 重算Listing公开基线，表格漂移则失败 | `python -m app.listing_agent.eval` |
 | 容器卷持久 | Listing镜像用同一卷启动两次，等待确认的任务可继续且只写一次 | GitHub Actions的volume任务 |
 

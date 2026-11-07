@@ -30,6 +30,8 @@ _TERMINAL = {
     "failed",
     "confirm_rejected",
     "write_unknown",
+    "write_conflict",
+    "write_failed",
     "draft_failed",
 }
 
@@ -44,6 +46,8 @@ def get_service() -> ListingService:
 def get_auth() -> AuthStore:
     global _auth
     if _auth is None:
+        from app.listing_agent.shopify_adapter import load_env_file
+        load_env_file()
         store = AuthStore(runtime_dir() / "auth.sqlite3")
         load_accounts_from_env(store)
         _auth = store
@@ -96,7 +100,7 @@ class DraftBody(BaseModel):
 
 
 class ReconcileBody(BaseModel):
-    found: bool
+    found: bool | None = None
 
 
 def _guard_faults(rerank_mode: str, inject_write_unknown: bool) -> None:
@@ -162,7 +166,7 @@ async def get_task(task_id: str, request: Request):
 
 
 @app.post("/api/listing/tasks/{task_id}/confirm")
-async def confirm_task(task_id: str, body: DecisionBody, request: Request):
+def confirm_task(task_id: str, body: DecisionBody, request: Request):
     actor = actor_from_request(request)
     return get_service().confirm(task_id, actor.user_id, actor.role, body.draft_version)
 
@@ -193,7 +197,7 @@ async def edit_draft(task_id: str, body: DraftBody, request: Request):
 
 
 @app.post("/api/listing/tasks/{task_id}/reconcile")
-async def reconcile_task(task_id: str, body: ReconcileBody, request: Request):
+def reconcile_task(task_id: str, body: ReconcileBody, request: Request):
     actor = actor_from_request(request)
     return get_service().reconcile(task_id, actor.user_id, actor.role, body.found)
 

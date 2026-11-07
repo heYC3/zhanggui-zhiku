@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1154" height="640" viewBox="0 0 1154 640" role="img" aria-label="验证结果 · 各任务分别计分">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10Z" fill="#94a3b8"/></marker></defs>
+<rect x="0" y="0" width="1154" height="640" rx="0" fill="#f8fafc" stroke="none"/>
+<text x="34" y="45" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="26" font-weight="700" fill="#0f172a">验证结果 · 各任务分别计分</text>
+<text x="34" y="76" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="14" font-weight="400" fill="#475569">已有记录的可视化摘要，不是新增实验 · 2026-11-08</text>
+<rect x="34" y="105" width="526" height="348" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
+<rect x="34" y="105" width="526" height="52" rx="12" fill="#1d4ed8" stroke="none"/>
+<text x="54" y="138" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="20" font-weight="700" fill="#ffffff">公开自编商品 · 离线闭环</text>
+<text x="57" y="202" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="30" font-weight="700" fill="#1d4ed8">11/16 → 16/16</text>
+<text x="57" y="231" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="15" font-weight="400" fill="#475569">关键词基线 → 当前草稿 / 确认流程</text>
+<text x="57" y="298" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="30" font-weight="700" fill="#1d4ed8">14/22 → 22/22</text>
+<text x="57" y="327" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="15" font-weight="400" fill="#475569">独立的检索 hit@3 题组</text>
+<text x="57" y="394" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="30" font-weight="700" fill="#1d4ed8">62 + 38 = 100</text>
+<text x="57" y="423" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="15" font-weight="400" fill="#475569">开发题 + 冻结题；不称 100 道冻结题</text>
+<rect x="594" y="105" width="526" height="348" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
+<rect x="594" y="105" width="526" height="52" rx="12" fill="#0f766e" stroke="none"/>
+<text x="614" y="138" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="20" font-weight="700" fill="#ffffff">私有手册 · 首次新题验收</text>
+<text x="617" y="202" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="30" font-weight="700" fill="#0f766e">23/24</text>
+<text x="617" y="231" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="15" font-weight="400" fill="#475569">严格整题通过；显式选图 4/5</text>
+<text x="617" y="298" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="30" font-weight="700" fill="#0f766e">19/20 · 20/20</text>
+<text x="617" y="327" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="15" font-weight="400" fill="#475569">正文事实题的检索 hit@1 · hit@3</text>
+<text x="617" y="394" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="30" font-weight="700" fill="#0f766e">45/47 · 47/47</text>
+<text x="617" y="423" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="15" font-weight="400" fill="#475569">前三证据覆盖 · 实际上下文覆盖</text>
+<rect x="34" y="478" width="1086" height="126" rx="12" fill="#fff7ed" stroke="#fed7aa"/>
+<text x="54" y="508" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="17" font-weight="700" fill="#9a3412">读数边界</text>
+<text x="54" y="535" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="15" font-weight="400" fill="#7c2d12">左侧为 3 个自编商品、离线字块向量；多个组件共同变化，不能归因于单一算法。</text>
+<text x="54" y="562" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="15" font-weight="400" fill="#7c2d12">右侧为 5 本手册 / 54 题中的新 24 题；同一开发者借助 Codex 实现与核对，不是独立盲评。</text>
+<text x="54" y="589" font-family="'Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="13" font-weight="400" fill="#7c2d12">来源：listing_data/reports/baseline.md、strategy_report.json、docs/evaluation.md；不公开私有题目。</text>
+</svg>

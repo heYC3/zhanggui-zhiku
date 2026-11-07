@@ -34,6 +34,10 @@ python -m app.listing_agent
 
 服务仅绑定本机。演示账号不能用于公网部署；服务端账号、角色和机构由`LISTING_ACCOUNTS`配置。实际数据默认落在已忽略的`listing_data/runtime/`。
 
+## Shopify 测试店
+
+Shopify 可选模式的配置、持久化目录、仅建 DRAFT 约束和真实验收证据见[Shopify 接入](shopify.md)。默认本地演示仍写本地台账。
+
 ## 完整手册问答
 
 在`knowledge_base`中复制`.env.example`为`.env`，填写自己的密钥和数据库地址。PowerShell使用`Copy-Item .env.example .env`，bash使用`cp .env.example .env`。
@@ -74,12 +78,30 @@ python -m app.server
 
 `.env.example`保留配置样例。BGE首次编码会加载或下载模型；服务页面可启动不等于PDF导入、向量库或真实模型已经验证成功。不要提交填好的`.env`、模型缓存、手册或运行数据库。
 
+### 仅使用公开样例进行模型问答
+
+已安装上面的 RAG 依赖、配置自己的文本模型后，可在 `knowledge_base` 中启动公开样例问答。它使用仓库商品 JSON，不需要先导入 Milvus，也不验证远程手册路径：
+
+```powershell
+$env:MANUAL_CATALOG_PATH = Join-Path (Get-Location) 'data/samples/demo_catalog.json'
+$env:EVIDENCE_BACKEND = 'offline'
+$env:CHAT_HISTORY_ENABLE = 'false'
+$env:WEB_SEARCH_ENABLE = 'false'
+python -m uvicorn app.query_process.api.query_service:app --host 127.0.0.1 --port 8001
+```
+
+打开 <http://127.0.0.1:8001/chat.html>，询问“掌柜示例耳机 X1 续航多久？这个时间包括通话吗？”。目录以 SKU 作为规范 `item_name`，自然语言名称作为别名，与公开证据的产品标识一致；只登记三个自编商品，事实仍从 `listing_data/products/` 读取。模型请求会使用自己的接口额度。截图与本轮远程导入失败记录见[实操图集](gallery.md)。
+
+切换到完整手册服务前，在新终端恢复所需配置，清除 `MANUAL_CATALOG_PATH` 与 `EVIDENCE_BACKEND`；公开样例目录不包含私有手册名称。
+
 ## 测试与公开基线
 
 在`knowledge_base`中执行：
 
 ```powershell
 python -m pip install -r requirements-listing.txt -r requirements-rag-tests.txt
+$env:PYTHON_DOTENV_DISABLED = '1'
+$env:LISTING_SHOP_BACKEND = 'local'
 python -m unittest discover -s test/listing -v
 python -m unittest discover -s test/rag -v
 python -m app.listing_agent.eval

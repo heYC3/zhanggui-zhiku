@@ -140,6 +140,7 @@
         <button id="cancelBtn" disabled>取消</button>
       </div>
       <div class="row" id="reconcileRow" hidden>
+        <button id="queryShopBtn" hidden>查询 Shopify 核对结果</button>
         <button id="foundBtn">我核对过，已经写上了</button>
         <button id="missingBtn">我核对过，没有写上</button>
       </div>
@@ -162,6 +163,8 @@
       draft_failed: "模型没有给出可用草稿",
       confirm_rejected: "没有写入",
       write_unknown: "写入结果不明，请先核对",
+      write_conflict: "远端商品冲突，需要人工核对",
+      write_failed: "Shopify 明确拒绝或请求前检查失败",
       running: "正在处理"
     };
     let task = null;
@@ -227,6 +230,10 @@
 
     function render(snapshot) {
       task = snapshot;
+      const remote = snapshot.shop_backend === "shopify";
+      const destination = remote ? "Shopify 测试店草稿" : "本地台账";
+      history.replaceState(null, "", `${location.pathname}?task=${encodeURIComponent(snapshot.task_id)}`);
+      $("who").textContent = snapshot.user_id + " · " + (snapshot.role === "editor" ? "编辑" : "查看");
       sessionId = snapshot.session_id || sessionId;
       const steps = $("steps");
       steps.innerHTML = "";
@@ -236,8 +243,11 @@
         let detail = data.detail || "";
         if (!detail && data.name === "wait_human") {
           detail = snapshot.status === "written" || snapshot.status === "written_checked"
-            ? "已经确认，并写入台账"
-            : "点下面的「确认写入」才会进台账";
+            ? `已经确认，并写入${destination}`
+            : `点下面的「确认写入」才会写入${destination}`;
+        }
+        if (remote && data.name === "wait_human") {
+          detail = snapshot.status === "written" ? "已确认，Shopify 草稿保持 DRAFT" : "等待确认后写入 Shopify 测试店草稿";
         }
         item.textContent = `${data.label || data.name || event.event}：${detail}`;
         steps.appendChild(item);
@@ -269,6 +279,17 @@
         : "";
       $("models").textContent = modelLine;
       $("receipt").textContent = snapshot.receipt ? snapshot.receipt.message : "";
+      if (snapshot.receipt && snapshot.receipt.url && remote) {
+        const link = document.createElement("a");
+        const expected = `https://${snapshot.store_domain}/admin/products/`;
+        if (snapshot.receipt.url.startsWith(expected)) {
+          link.href = snapshot.receipt.url;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          link.textContent = ` 查看 Shopify 草稿 ${snapshot.receipt.shop_product_id || ""}`;
+          $("receipt").appendChild(link);
+        }
+      }
       const waiting = snapshot.status === "awaiting_confirmation";
       const written = snapshot.status === "written" || snapshot.status === "written_checked";
       const canEdit = waiting && snapshot.role === "editor";
@@ -279,19 +300,35 @@
       $("rejectBtn").disabled = !canEdit;
       $("cancelBtn").disabled = !canEdit;
       if (written) {
-        $("actionNote").textContent = "已经写入台账，不用再点确认。";
+        $("actionNote").textContent = `已经写入${destination}，不用再点确认。`;
       } else if (canConfirm) {
-        $("actionNote").textContent = "草稿检查通过了。点绿色的「确认写入」，才会写入台账。";
+        $("actionNote").textContent = `草稿检查通过了。确认后写入${destination}${remote ? "（" + snapshot.store_domain + "），商品保持 DRAFT" : ""}。`;
       } else if (waiting) {
         $("actionNote").textContent = "现在还不能写入。";
       } else {
         $("actionNote").textContent = "";
       }
-      $("reconcileRow").hidden = snapshot.status !== "write_unknown";
-      const kind = ["ambiguous", "insufficient", "failed", "draft_failed", "confirm_rejected", "write_unknown"].includes(snapshot.status)
+      $("reconcileRow").hidden = !["write_unknown", "write_conflict"].includes(snapshot.status);
+      $("queryShopBtn").hidden = !remote;
+      $("queryShopBtn").disabled = snapshot.role !== "editor";
+      $("foundBtn").hidden = remote;
+      $("missingBtn").hidden = remote;
+      const kind = ["ambiguous", "insufficient", "failed", "draft_failed", "confirm_rejected", "write_unknown", "write_conflict", "write_failed"].includes(snapshot.status)
         ? "warn" : "";
-      setStatus(statusLabels[snapshot.status] || snapshot.status, snapshot.clarify_question ? "warn" : kind);
+      setStatus(remote && written ? "已写入 Shopify 测试店草稿（DRAFT）" : (statusLabels[snapshot.status] || snapshot.status), snapshot.clarify_question ? "warn" : kind);
       if (snapshot.clarify_question) setStatus(snapshot.clarify_question, "warn");
+    }
+
+    async function restoreTask() {
+      const taskId = new URLSearchParams(location.search).get("task");
+      if (!taskId || !token) return;
+      const response = await fetch(`/api/listing/tasks/${encodeURIComponent(taskId)}`, {
+        headers: { Authorization: "Bearer " + token }
+      });
+      const snapshot = await response.json();
+      if (!response.ok) throw new Error(snapshot.detail || "任务恢复失败");
+      render(snapshot);
+      if (["running", "awaiting_confirmation"].includes(snapshot.status)) listen(taskId);
     }
 
     $("loginBtn").onclick = async () => {
@@ -305,6 +342,7 @@
         sessionStorage.setItem("listingToken", token);
         sessionStorage.setItem("listingRole", actorRole);
         $("who").textContent = logged.user_id + " · " + (actorRole === "editor" ? "编辑" : "查看");
+        await restoreTask();
       } catch (error) {
         setStatus(error.message, "bad");
       }
@@ -348,14 +386,14 @@
         return;
       }
       if (task.status === "written" || task.status === "written_checked") {
-        $("actionNote").textContent = "这份草稿已经写入台账，不用再点。";
+        $("actionNote").textContent = task.shop_backend === "shopify" ? "这份草稿已经写入 Shopify 测试店，不用再点。" : "这份草稿已经写入台账，不用再点。";
         $("confirmBtn").disabled = true;
         $("confirmBtn").textContent = "已经写入";
         return;
       }
       $("confirmBtn").disabled = true;
       $("confirmBtn").textContent = "正在写入…";
-      $("actionNote").textContent = "正在写入台账，请稍等。";
+      $("actionNote").textContent = task.shop_backend === "shopify" ? "正在创建 Shopify 草稿并读回核对，请稍等。" : "正在写入台账，请稍等。";
       try {
         const snapshot = await post(`/api/listing/tasks/${task.task_id}/confirm`, {
           draft_version: task.draft_version
@@ -387,10 +425,22 @@
     }
     $("foundBtn").onclick = () => reconcile(true);
     $("missingBtn").onclick = () => reconcile(false);
+    $("queryShopBtn").onclick = async () => {
+      $("queryShopBtn").disabled = true;
+      try {
+        const snapshot = await post(`/api/listing/tasks/${task.task_id}/reconcile`, {});
+        render(snapshot);
+      } catch (error) {
+        setStatus(error.message, "bad");
+      } finally {
+        $("queryShopBtn").disabled = false;
+      }
+    };
 
     fetch("/api/listing/meta").then((response) => response.json()).then((card) => {
       $("models").textContent = `默认草稿器 ${card.draft_generator}，向量 ${card.embedding}，重排序 ${card.reranker}。`;
     });
+    restoreTask().catch((error) => setStatus(error.message, "bad"));
   </script>
 </body>
 </html>

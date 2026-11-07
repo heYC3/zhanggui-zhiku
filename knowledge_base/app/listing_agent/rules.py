@@ -72,6 +72,13 @@ def validate_listing_draft(draft: dict, platform: str, actor: Actor) -> dict:
             errors.append(f"出现了规则不允许的说法：{word}")
 
     if product is not None:
+        # 标题只允许“品牌型号 + 资料原句”，阻止无数字的虚构属性混入标题。
+        compact = lambda value: re.sub(r"\s+", "", value)
+        identity = compact(product["brand"] + product["model"])
+        title_compact = compact(title)
+        fact = title_compact[len(identity):] if title_compact.startswith(identity) else None
+        if fact is None or (fact and fact not in compact(evidence)):
+            errors.append("标题必须由品牌型号和资料原句组成")
         for number in _numbers_outside_model(title, product["model"]):
             if number not in evidence:
                 errors.append(f"标题里的数字 {number} 在资料中找不到")

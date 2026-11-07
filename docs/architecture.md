@@ -2,13 +2,17 @@
 
 [返回首页](../README.md) · [运行指南](running.md) · [评测说明](evaluation.md)
 
+![三条工作流与共享证据接口](assets/architecture.svg)
+
+实现结构示意，按当前代码校正。实际页面和运行记录见[实操图集](gallery.md)。
+
 ## 三条工作流
 
 | 流程 | 输入与输出 | 实现入口 |
 | --- | --- | --- |
 | 导入 | PDF / Markdown → 带来源的正文与图片 → Milvus | [kb_import_app](../knowledge_base/app/import_process/agent/main_graph.py) |
 | 问答 | 问题与显式历史 → 型号确认 → 证据检索 → 答案与图片 | [KBQueryWorkflow](../knowledge_base/app/query_process/agent/kb_query_workflow.py) |
-| Listing | 商品要求 → 证据 → 草稿 / 缺口 → 校验 → 人工确认 → 本地写入 | [Listing workflow](../knowledge_base/app/listing_agent/workflow.py) |
+| Listing | 商品要求 → 证据 → 草稿 / 缺口 → 校验 → 人工确认 → 本地台账 / Shopify DRAFT | [Listing workflow](../knowledge_base/app/listing_agent/workflow.py) |
 
 [app/server.py](../knowledge_base/app/server.py) 启动三个本地服务，分别使用 8000、8001、8002 端口。问答和 Listing 保持不同状态与生成目标，通过 [evidence/store.py](../knowledge_base/app/evidence/store.py) 复用证据接口。演示商品使用离线资料；目录外手册使用 Milvus。两类后端的验证结果分别报告。
 
@@ -46,7 +50,7 @@
 | 结果不明 | 转入核对状态，不自动重复写入 |
 | SSE | 进度事件持久化；订阅断开不等于取消业务任务 |
 
-本地服务不是生产认证系统，写入的是本地台账。断电、跨机容灾和生产规模隔离尚无验证。
+默认写入本地台账；可选 Shopify 模式将写入意图先持久化，再创建指定开发店 DRAFT，独立读回后提交回执。未知结果按完整操作 tag 和正文核对，禁止自动重建。实现与证据见[Shopify 接入](shopify.md)。本地服务不是生产认证系统，断电、跨机容灾和生产规模隔离尚无验证。
 
 ## MCP 与观测
 

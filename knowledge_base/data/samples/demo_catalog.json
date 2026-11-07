@@ -1,0 +1,28 @@
+{
+  "products": [
+    {
+      "item_name": "zg-ear-x1-pro",
+      "aliases": [
+        "掌柜示例耳机 X1 Pro",
+        "掌柜示例耳机X1 Pro",
+        "X1 Pro"
+      ]
+    },
+    {
+      "item_name": "zg-ear-x1",
+      "aliases": [
+        "掌柜示例耳机 X1",
+        "掌柜示例耳机X1",
+        "X1"
+      ]
+    },
+    {
+      "item_name": "zg-power-p20",
+      "aliases": [
+        "掌柜示例移动电源 P20",
+        "移动电源 P20",
+        "P20"
+      ]
+    }
+  ]
+}

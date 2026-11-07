@@ -1,0 +1,57 @@
+{
+  "checked_at": "2026-11-07T18:26:54.497801+00:00",
+  "store_domain": "zhanggui-test.myshopify.com",
+  "api_version": "2026-10",
+  "task_id": "b6f855e47b364cfdaf96413686cbfcf5",
+  "draft_version": 1,
+  "operation_id": "c7f8c6ba01f44366a6b881ee0f25f990",
+  "payload_sha256": "76330f7f67c5f0006a5f1a909eaeec46ff8705a3083f4e511e8ac24e91c974ef",
+  "local_status": "written",
+  "shop_product_id": "15464977825866",
+  "shop_status": "DRAFT",
+  "remote_reconcile": "found",
+  "reason": "按完整操作标记、正文与摘要找到唯一匹配的 DRAFT 商品。",
+  "product": {
+    "id": "gid://shopify/Product/15464977825866",
+    "status": "DRAFT",
+    "title": "掌柜示例X1 音乐可以连续播放 30 小时，只统计听歌，不含通话。",
+    "vendor": "掌柜示例",
+    "tags": [
+      "sku:zg-ear-x1",
+      "zhanggui-listing-test",
+      "zhanggui-op-c7f8c6ba01f44366a6b881ee0f25f990"
+    ],
+    "descriptionHtml": "<ul>\n<li>音乐可以连续播放 30 小时，只统计听歌，不含通话。</li>\n<li>耳机从没电到充满大约需要 40 分钟。</li>\n<li>单耳重量 4.8 克，颜色有黑色和白色。</li>\n</ul>"
+  },
+  "url": "https://zhanggui-test.myshopify.com/admin/products/15464977825866",
+  "mutation_confirmed": true,
+  "readback_confirmed": true,
+  "scope": "指定开发店、自编商品、仅 DRAFT；不证明真实模型或生产部署",
+  "repeat_confirm_same_product": true,
+  "repeat_confirm_requests": 2,
+  "page_confirmation": true,
+  "server_restart_same_receipt": true,
+  "after_restart_remote_reconcile": "found",
+  "local_listing_rows": 1,
+  "browser_refresh_restored": true,
+  "mutation_product": {
+    "id": "gid://shopify/Product/15464977825866",
+    "status": "DRAFT",
+    "title": "掌柜示例X1 音乐可以连续播放 30 小时，只统计听歌，不含通话。",
+    "vendor": "掌柜示例"
+  },
+  "initial_readback_product": {
+    "id": "gid://shopify/Product/15464977825866",
+    "status": "DRAFT",
+    "title": "掌柜示例X1 音乐可以连续播放 30 小时，只统计听歌，不含通话。",
+    "vendor": "掌柜示例"
+  },
+  "offline_regression": {
+    "listing_tests": 61,
+    "rag_tests": 39,
+    "passed": true,
+    "dotenv_disabled": true,
+    "shop_backend": "local"
+  },
+  "fault_window_validation": "offline persistent fake shop; no deliberate faults against Shopify"
+}
