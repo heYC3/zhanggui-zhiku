@@ -60,6 +60,14 @@
 
 原始记录移除本机解释器路径、PID 与 stderr 后保存为 [公开 JSON](assets/mcp_record_2026-11-08.json)。本探针没有实际调用第二个校验工具，也不代表外部桌面客户端安装或店铺写入。[探针源码](../knowledge_base/app/listing_agent/mcp_probe.py)可复现调用。
 
+## 8. CI：GitHub Actions 实际通过
+
+![提交 726910e 的 GitHub Actions 页面](assets/ci_726910e_2026-11-08.jpg)
+
+2026-11-08 的真实 GitHub 页面，来源为[运行 #24](https://github.com/heYC3/zhanggui-zhiku/actions/runs/42403423405)，对应实现与图集提交 `726910ead43b2b36f8d2f85fd3cc3ea1fc5a968d`。`test`、`rag-contracts`、`volume` 三个任务均成功，分别检查 Listing 回归与公开基线、RAG 合成契约、容器卷两次启动后的持久化。本轮没有在 CI 调用真实模型、私有手册或 Shopify。
+
+截图为该次运行的静态留存，后续提交状态仍应查看[实时 Actions](https://github.com/heYC3/zhanggui-zhiku/actions/workflows/listing-ci.yml)。
+
 ## 图片维护
 
 SVG 图源与生成器在 [render_diagrams.py](assets/render_diagrams.py)，只使用 Python 标准库。执行 `python docs/assets/render_diagrams.py` 可重建三张图；公开检索分数直接读取逐题 JSON，私有结果只引用已公开汇总。页面图由浏览器实际截图保存，未用注入数据制作成功状态。
