@@ -69,7 +69,8 @@ class ImportTests(unittest.TestCase):
 
     def test_final_images_only_come_from_actual_context(self):
         with patch.dict(os.environ, {'LLM_DEFAULT_TEMPERATURE':'0.0','CHAT_HISTORY_ENABLE':'false',
-                                     'LOG_CONSOLE_ENABLE':'false','LOG_FILE_ENABLE':'false'}):
+                                     'LOG_CONSOLE_ENABLE':'false','LOG_FILE_ENABLE':'false',
+                                     'PROJECT_ROOT': str(Path(__file__).resolve().parents[2])}):
             from app.query_process.agent.nodes.node_answer_output import NodeAnswerOutput
         module='app.query_process.agent.nodes.node_answer_output'
         state=dict(answer='合成答案',is_stream=True,session_id='synthetic-image-context',
