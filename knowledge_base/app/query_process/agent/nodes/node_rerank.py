@@ -40,20 +40,29 @@ class NodeRerank(NodeBase):
 
         # 1. 获取 query
         user_query = state.get('rewritten_query', '') or state.get('original_query', '')
+        from app.evidence.identity import topic_query
+        user_query = topic_query(user_query, state.get('item_names') or [])
 
         # 2. 合并多源文档
         merged_multi_docs: List[Dict[str, Any]] = self._merge_multi_source_docs(state)
 
         # 3. Rerank 精排(精排打分)
-        reranked_docs: List[Dict[str, Any]] = self._rerank_merged_docs(user_query, merged_multi_docs)
+        self.last_error = ""
+        multiple = len(set(state.get('item_names') or [])) > 1
+        reranked_docs: List[Dict[str, Any]] = self._rerank_merged_docs(user_query, merged_multi_docs, multiple)
+
+        if len(set(state.get('item_names') or [])) > 1:
+            from app.evidence.manual_retrieval import interleave_products
+            # 产品间分数不可用来判定截断；每个型号先各交付一个最强片段。
+            cutoff_docs = interleave_products(reranked_docs, state['item_names'])[:RERANK_MAX_TOPK]
+            add_done_task(state['session_id'], self.name)
+            return {'reranked_docs': cutoff_docs, 'rerank_error': self.last_error}
 
         # 4. 动态 Top_K 截取(断崖检测)
         cutoff_docs = self._cliff_cutoff(reranked_docs)
 
-        state['reranked_docs'] = cutoff_docs
-
         add_done_task(state["session_id"], self.name)
-        return state
+        return {"reranked_docs": cutoff_docs, "rerank_error": self.last_error}
 
     def _cliff_cutoff(self, ranked_docs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """断崖检测截断：相邻得分差距超过阈值时截断。"""
@@ -106,6 +115,7 @@ class NodeRerank(NodeBase):
                 "content": rrf_doc.get('content'),
                 "title": rrf_doc.get('title'),
                 "chunk_id": rrf_doc.get('chunk_id'),
+                "item_name": rrf_doc.get('item_name'),
                 "url": "",
                 "source": "local"
             }
@@ -129,41 +139,19 @@ class NodeRerank(NodeBase):
 
         return final_docs
 
-    def _rerank_merged_docs(self, user_query: str, merged_multi_docs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _rerank_merged_docs(self, user_query: str, merged_multi_docs: List[Dict[str, Any]], passages: bool = False) -> List[Dict[str, Any]]:
         """使用 Reranker 模型对文档进行精排"""
         if not merged_multi_docs:
             return []
 
         try:
 
-            contents = [doc.get("content") for doc in merged_multi_docs]
-            # 交叉编码器（精排阶段）
-            # Query 和 Document 联合编码，精度更高
-            rerank_scores = rerank_documents(user_query, contents)
-
-            scored_docs = [{**doc, "score": score} for doc, score in zip(merged_multi_docs, rerank_scores)]
-            # 等同如下写法
-            # scored_docs = []
-            # for doc, score in zip(merged_multi_docs, rerank_scores):
-            #     scored_docs.append({
-            #         "content": doc.get("content"),
-            #         "title": doc.get("title"),
-            #         "chunk_id": doc.get("chunk_id"),
-            #         "url": doc.get("url"),
-            #         "source": doc.get("source"),
-            #         "score": float(score),
-            #     })
-
-
-            sorted_score_docs = sorted(
-                scored_docs,
-                key=lambda x: x["score"],
-                reverse=True
-            )
-
-            return sorted_score_docs
+            from app.evidence.manual_retrieval import score_original_documents, score_document_passages
+            scorer = score_document_passages if passages else score_original_documents
+            return scorer(user_query, merged_multi_docs, rerank_documents)
 
         except Exception as e:
+            self.last_error = type(e).__name__
             # 百炼重排序不可用时，按前面 RRF 的顺序继续，避免整次问答失败
             logger.error(f"Rerank 重排序失败，改用融合排序结果：{str(e)}")
             return [

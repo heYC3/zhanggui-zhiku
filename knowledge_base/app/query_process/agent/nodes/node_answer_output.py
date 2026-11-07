@@ -51,7 +51,9 @@ class NodeAnswerOutput(NodeBase):
 
 
             # 提取图片URL（用于历史记录和前端展示）
-        image_urls = self._extract_images_from_docs(state.get("reranked_docs") or [])
+        image_urls = self._extract_images_from_docs(state.get("context_docs") or [])
+        state["image_urls"] = image_urls
+        set_task_result(state['session_id'], 'image_urls', image_urls)
 
         # 阶段四：把答案写入到mongodb的history中
         if state.get("answer"):
@@ -108,9 +110,11 @@ class NodeAnswerOutput(NodeBase):
         item_names = state["item_names"]
 
         # 2. 格式化上下文文档
+        context_docs = []
         context_str, char_budget = self._format_reranked_docs(
-            state.get("reranked_docs") or [], char_budget
+            state.get("reranked_docs") or [], char_budget, used_docs=context_docs
         )
+        state["context_docs"] = context_docs
 
         # 3. 格式化历史对话
         history_str, char_budget = self._format_chat_history(
@@ -137,7 +141,7 @@ class NodeAnswerOutput(NodeBase):
         return prompt
 
 
-    def _format_reranked_docs(self, reranked_docs: List[Dict], char_budget: int) -> Tuple[str, int]:
+    def _format_reranked_docs(self, reranked_docs: List[Dict], char_budget: int, *, used_docs=None) -> Tuple[str, int]:
         """格式化重排序文档，带字符预算控制"""
         formatted_lines = []
         used_chars = 0
@@ -159,11 +163,12 @@ class NodeAnswerOutput(NodeBase):
             meta_tags = [f"[{idx}]"]
             for field, template in [
                 ("source", "[source={}]"),
+                ("item_name", "[product={}]"),
                 ("chunk_id", "[chunk_id={}]"),
                 ("url", "[url={}]"),
                 ("title", "[title={}]"),
             ]:
-                field_value = str(doc.get(field)).strip()
+                field_value = str(doc.get(field) or "").strip()
                 if field_value:
                     meta_tags.append(template.format(field_value))
 
@@ -173,11 +178,14 @@ class NodeAnswerOutput(NodeBase):
 
             doc_entry = " ".join(meta_tags) + "\n" + content
 
-            if used_chars + len(doc_entry) > char_budget:
-                break
+            separator_chars = 2 if formatted_lines else 0
+            if used_chars + separator_chars + len(doc_entry) > char_budget:
+                continue
 
+            if used_docs is not None:
+                used_docs.append(doc)
             formatted_lines.append(doc_entry)
-            used_chars += len(doc_entry) + 2
+            used_chars += len(doc_entry) + separator_chars
 
         return "\n\n".join(formatted_lines), char_budget - used_chars
 

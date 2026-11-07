@@ -16,6 +16,8 @@ from app.utils.sse_utils import create_sse_queue, SSEEvent, sse_generator, push_
 
 # 定义fastapi对象
 app = FastAPI(title="query service",description="掌柜智库查询服务")
+from app.evidence.manual_assets import router as manual_assets_router
+app.include_router(manual_assets_router)
 # 跨域问题解决
 app.add_middleware(
     CORSMiddleware,
@@ -87,6 +89,7 @@ async def query(background_tasks: BackgroundTasks, request: QueryRequest):
             "message":"处理完成！",
             "session_id":session_id,
             "answer":answer,
+            "image_urls":get_task_result(session_id, 'image_urls', []),
             "done_list":[]
         }
 
@@ -146,6 +149,7 @@ async def query_status(task_id: str):
         "done_list": get_done_task_list(task_id),
         "running_list": get_running_task_list(task_id),
         "answer": get_task_result(task_id, "answer", ""),
+        "image_urls": get_task_result(task_id, 'image_urls', []),
     }
 
 @app.get("/history/{session_id}")

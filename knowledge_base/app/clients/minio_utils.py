@@ -1,5 +1,6 @@
 # 导入Python内置模块
 import json
+import os
 # 导入MinIO官方Python SDK核心类
 from minio import Minio
 # 项目内部配置与日志
@@ -16,6 +17,8 @@ def _init_minio_client():
     数据库还没启动时不能让整个网页服务起不来，失败只记日志，上传接口会跳过对象存储。
     """
     global minio_client
+    if os.getenv('MANUAL_IMAGE_BACKEND', 'local').lower() == 'local':
+        return None
     if not minio_config.endpoint or not bucket_name:
         logger.warning("MinIO 未配置 endpoint 或 bucket，图片将只保存在本地")
         return None

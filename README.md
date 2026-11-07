@@ -1,268 +1,104 @@
 # 掌柜智库
 
-跨境电商商品资料问答与 Listing Agent
+基于 LangGraph 的商品知识 RAG 与 Listing Agent：从产品资料检索证据，回答售前问题，生成可审核的商品文案草稿。
 
-[![listing-agent](https://github.com/heYC3/zhanggui-zhiku/actions/workflows/listing-ci.yml/badge.svg)](https://github.com/heYC3/zhanggui-zhiku/actions/workflows/listing-ci.yml)
+[![CI](https://github.com/heYC3/zhanggui-zhiku/actions/workflows/listing-ci.yml/badge.svg)](https://github.com/heYC3/zhanggui-zhiku/actions/workflows/listing-ci.yml)
+![Python](https://img.shields.io/badge/Python-3.11-blue)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-独立开发的电商产品知识双出口：手册 RAG 问答 + Listing 工作台；共享证据、令牌鉴权、人工确认、冻结评测；支持离线原句与可控真实模型草稿，含 SQLite 恢复与官方 MCP 客户端记录。
+商品参数分散在手册里，相近型号容易串用，生成文案又可能补出资料没有的卖点。这个项目将资料导入、证据检索、内容生成与人工确认连接起来：问答提供依据，Listing 在校验和确认后写入本地台账。
 
-实现时参考开源组件与公开资料，用的是 LangGraph。Listing 的冻结测集、任务完成率和人机确认是个人新增。
+技术栈：**Python · FastAPI · LangGraph · BGE-M3 · Milvus · SQLite · SSE · MCP**。
 
-## 目录
+## 项目演示
+
+![Listing 草稿与证据，等待人工确认](docs/listing/draft.png)
+
+[查看确认后写入台账的画面](docs/listing/written.png)。默认演示使用自编商品和离线证据，不需要模型密钥；也提供真实模型草稿路径。当前写入目标是本地台账。
+
+## 重点实现
+
+| 方向 | 实现 | 代码入口 |
+| --- | --- | --- |
+| 资料与证据 | PDF / Markdown 导入、封面缺字补充、图片摘要、带来源的正文切片；问答和 Listing 共享证据接口 | [导入工作流](knowledge_base/app/import_process/agent/main_graph.py) · [证据层](knowledge_base/app/evidence/store.py) |
+| RAG 问答 | 精确型号与澄清、按产品召回、稠密与稀疏检索、HyDE、RRF、长表格重排；记录实际生成上下文 | [问答工作流](knowledge_base/app/query_process/agent/kb_query_workflow.py) · [手册检索](knowledge_base/app/evidence/manual_retrieval.py) |
+| Listing Agent | 证据约束草稿、结构与规则校验、缺口提示、人工确认；可选真实模型，失败回退原句 | [Listing 工作流](knowledge_base/app/listing_agent/workflow.py) · [模型草稿](knowledge_base/app/listing_agent/llm_draft.py) |
+| 执行与恢复 | 令牌鉴权、任务归属校验、草稿版本检查、幂等写入、SQLite 检查点、结果不明时核对、SSE 进度 | [API](knowledge_base/app/listing_agent/api.py) · [服务](knowledge_base/app/listing_agent/service.py) |
+| 工具与评测 | 官方 MCP SDK 的查证据与校验工具；合成回归、冻结基线、真实手册一次性验收分别计分 | [MCP 服务](knowledge_base/app/listing_agent/mcp_server.py) · [测试](knowledge_base/test) |
+
+这是个人工程项目。重点开发与核验范围包括共享证据、型号边界、多产品检索、受控草稿、确认与恢复流程，以及评测和故障归因。实现使用开源组件；项目代码与自编演示数据按 [MIT](LICENSE) 发布，第三方手册不随仓库分发。
+
+## 验证结果
+
+截至 2026-11-08，不同任务分别计分，不合成一个准确率。
+
+| 验证 | 范围 | 结果 |
+| --- | --- | --- |
+| Listing 离线闭环 | 自编商品冻结集中的 16 道草稿 / 流程题 | 关键词基线 11/16；当前流程 16/16 |
+| 真实手册首次验收 | 5 本手册、54 题中的 **24 道新题**；另 30 题为开发回归 | 严格整题 **23/24**；文字要点 47/47；显式选图 4/5 |
+| 单元回归 | 不含真实模型调用的 RAG 与 Listing 测试 | RAG 39 项，Listing 32 项通过 |
+
+手册新题的检索 hit@3 为 20/20，前三条指定证据覆盖 45/47；实际上下文覆盖 47/47。hit@3 表示至少命中一条相关证据，不等于全部证据都排在前三。图片选取和小样本外推仍有边界。
+
+私有题在来源核对后封存，系统固定后只运行一次；同一开发者借助 Codex 实现、出题和复核，**不是独立人工盲评**。公开仓库提供方法、合成测试和脱敏汇总，原手册、题目和完整运行留在本机。
+
+完整口径、来源摘要与限制见 [评测说明](docs/evaluation.md)；Listing 原始公开记录见 [基线](knowledge_base/listing_data/reports/baseline.md)、[故障与恢复](knowledge_base/listing_data/reports/durability.md)。
+
+## 快速运行
+
+Python 3.11，在仓库根目录执行（PowerShell）：
+
+```powershell
+cd knowledge_base
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements-listing.txt
+$env:LISTING_ACCOUNTS = "小明:demo-pass:editor:org-demo"
+python -m app.listing_agent
+```
+
+打开 <http://127.0.0.1:8002/listing.html>。上面的账号仅用于本地演示；登录后选择示例商品，生成草稿，再确认写入。Linux / macOS 的激活和环境变量写法见 [运行指南](docs/running.md)。
+
+无密钥回归：
+
+```powershell
+python -m pip install -r requirements-rag-tests.txt
+python -m unittest discover -s test/listing -v
+python -m unittest discover -s test/rag -v
+```
+
+完整手册问答需要配置自己的模型与检索服务，见 [运行指南](docs/running.md)。CI 检查 Listing 基线、两组单元回归及 Listing 容器卷持久；不运行私有手册或付费模型。
+
+## 架构与目录
+
+```mermaid
+flowchart LR
+    A[手册 / 商品资料] --> B[导入与证据层]
+    B --> C[型号确认与检索]
+    C --> D[带依据的问答]
+    C --> E[Listing 草稿与校验]
+    E --> F[人工确认]
+    F --> G[本地台账与回执]
+```
 
 ```text
 knowledge_base/
-├── app/
-│   ├── server.py            一次打开导入、问答、Listing 三个页面
-│   ├── import_process/      导入手册
-│   ├── query_process/       回答问题
-│   └── listing_agent/       Listing 工作台（页面、流程、评测）
-├── listing_data/
-│   ├── products/            3 个自编商品，不是在售商品
-│   ├── eval/                开发集 dev.json，冻结测集 frozen_test.json
-│   └── reports/baseline.md  冻结测集基线
-├── deploy/                  Milvus、MinIO、MongoDB，以及 Listing 容器
-├── requirements-listing.txt 只跑 Listing
-├── requirements-rag.txt     完整 RAG（导入和问答）
-└── .env.example             配置样例，复制成 .env 再填
+├── app/evidence/        共享证据、型号识别、手册检索与图片
+├── app/import_process/  导入工作流与页面
+├── app/query_process/   问答工作流与页面
+├── app/listing_agent/   草稿、确认、恢复与 MCP 工具
+├── listing_data/        自编商品、公开合成测集与结果
+├── test/rag/            合成 RAG 回归
+├── test/listing/        Listing 与恢复回归
+└── deploy/              服务编排与 Listing 镜像定义
 ```
 
-## 快速开始
+- [架构与实现](docs/architecture.md)：工作流、共享边界、失败与恢复。
+- [运行指南](docs/running.md)：本地启动、配置、测试和接口。
+- [评测说明](docs/evaluation.md)：分母、基线、首次验收和已知限制。
 
-两条路分开。只想看 Listing，走第一条，不需要向量库和模型密钥。卷持久由 GitHub Actions 的 volume 任务验证，本机可选 Docker。
+## 当前范围
 
-### 只跑 Listing
+没有连接真实店铺 API；商品和平台规则为演示数据。鉴权与 SQLite 恢复验证面向本地单机，不代表生产级多租户或分布式高可用。手册图片验证覆盖本机服务和真实流式浏览器显示，MinIO 后端未完成本轮验收。
 
-页面默认账号是「小明」，密码是 `demo-pass`。这只给本地演示用，公开后请改掉。启动前设置：
-
-`LISTING_ACCOUNTS=小明:demo-pass:editor:org-demo`
-
-同一行写在 `knowledge_base/.env.example`。只跑 Listing 时，用下面的环境变量即可，不必先填模型密钥。不要把填好的 `.env` 提交进仓库。
-
-PowerShell：
-
-```powershell
-cd knowledge_base
-$env:LISTING_ACCOUNTS = "小明:demo-pass:editor:org-demo"
-pip install -r requirements-listing.txt
-python -m app.listing_agent.eval
-python -m unittest discover -s test/listing -v
-python -m app.listing_agent
-```
-
-bash / Linux（可选，和上面等价）：
-
-```bash
-cd knowledge_base
-export LISTING_ACCOUNTS='小明:demo-pass:editor:org-demo'
-pip install -r requirements-listing.txt
-python -m app.listing_agent.eval
-python -m unittest discover -s test/listing -v
-python -m app.listing_agent
-```
-
-打开 <http://127.0.0.1:8002/listing.html>，用「小明」和 `demo-pass` 登录，再生成草稿。
-
-评测会重算冻结测集，并对照 `listing_data/reports/baseline.md`。
-
-GitHub Actions 跑同样的单元测试和 `python -m app.listing_agent.eval`。基线表和仓库里的 `baseline.md` 不一致时，流水线失败。卷持久由 GitHub Actions 的 volume 任务验证：构建 Listing 镜像，用同一个数据卷启动两次，核对等待确认的任务还在，并且只写入一次。本机可选 Docker。
-
-检查点默认写进 SQLite，进程被强制结束后还能接着确认。`LISTING_CHECKPOINT=file` 仍是单机演示用的文件快照，保存前被杀掉就续不上。故障、并发和推送断开的步骤与结果在 `knowledge_base/listing_data/reports/durability.md`。留出案例的分项对照在 `knowledge_base/listing_data/reports/ablation.md`。
-
-### 完整 RAG
-
-需要 Python 3.11、自己的模型密钥，以及 Milvus、MinIO、MongoDB。
-
-PowerShell：
-
-```powershell
-cd knowledge_base
-copy .env.example .env
-docker compose -f deploy/docker-compose.yml up -d
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-pip install -r requirements-rag.txt
-python -m app.server
-```
-
-bash / Linux（可选，和上面等价）：
-
-```bash
-cd knowledge_base
-cp .env.example .env
-docker compose -f deploy/docker-compose.yml up -d
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-pip install -r requirements-rag.txt
-python -m app.server
-```
-
-`.env` 按 `.env.example` 填写，不要把填好的文件提交。数据库起来之后，把地址写进 `MILVUS_URL`、`MINIO_ENDPOINT`、`MONGO_URL`。
-
-- 导入：<http://127.0.0.1:8000/import.html>
-- 问答：<http://127.0.0.1:8001/chat.html>
-- Listing：<http://127.0.0.1:8002/listing.html>
-
-可以先上传 `knowledge_base/data/samples/示例-掌柜耳机说明书.md`。这是短的演示文稿，不经过 PDF 解析。导入完成后再问「掌柜示例耳机 X1 续航多久」。
-
-PDF 手册要另备 MinerU 令牌。BGE-M3 在第一次向量化时按 `BGE_M3` 下载；没有显卡就保持 `BGE_DEVICE=cpu`、`BGE_FP16=0`。
-
-## 实现范围
-
-导入、问答、Listing 三条链路是端到端独立完成的。Listing 用一句话指定商品，先确认型号，再从自编资料里找证据，只用证据原句拼标题和要点。资料没写的不补。X1 和 X1 Pro 分不清时先追问，不写草稿。
-
-个人新增的是 Listing 评测和人机确认。问答检索排位和 Listing 任务完成率分开计，不合成一个数。
-
-运行上做了这些处理：MinIO 没启动时网页仍能打开；向量模型在真正编码时再加载；问答有状态查询和流式错误。
-
-## Acknowledgements
-
-参考开源组件与公开资料，自己把导入、问答和 Listing 落地。厂商手册没有放进仓库。Listing 的商品、规则、评测题和确认流程是个人新增。许可是 [MIT](LICENSE)。
-
-## 两条能力
-
-问答和 Listing 是两个接口、两条工作流。它们只共用证据检索：同一商品返回原句、`chunk_id` 和来源。目录里有的演示商品走离线资料；目录里没有的手册再走 Milvus。
-
-| 能力 | 出口 | 指标 |
-| --- | --- | --- |
-| 手册问答 | `8001` `/chat.html` | 检索排位 hit@1、hit@3 |
-| Listing | `8002` `/listing.html` | 任务完成率，一题一次，成功或失败 |
-
-下面的完成率和 hit@k 仍是两张表。
-
-## 冻结测集基线
-
-100 条题拆成开发集 62 条、冻结测集 38 条。字段是问题、标准要点、证据位置、题型。完成率只算冻结集里的 7 条草稿题和 9 条流程题：一条题一次任务，成功或失败。2026-11-06 用离线字块重跑，没有加载 BGE-M3，没有调用付费模型。
-
-成功要同时满足：型号对，证据命中标准位置，资料要点至少写进草稿 1 条，禁语 0 条。流程题还要确认路径正确。
-
-| 配置 | 成功/总数 | 完成率 |
-| --- | --- | --- |
-| Before：关键词检索，无确认门，无规则校验 | 11/16 | 68.8% |
-| After：当前默认链路（RRF+HyDE、确认、规则、重排序可降级） | 16/16 | 100.0% |
-
-Before 没过的 5 条里，2 条是改写问法没有找回目标证据，3 条是指代续问没有走确认门。After 在这 16 条上是满的。这是小集合上的结果，不是线上提升。问答完成率没有写，冻结集里没有「答案是否覆盖标准要点」的问答题。
-
-下面的 hit@k 只看检索排位，不是完成率。
-
-| 题型 | 条数 | 关键词 hit@1 | 关键词 hit@3 | 稠密 hit@1 | 稠密 hit@3 | RRF hit@1 | RRF hit@3 | RRF+HyDE hit@1 | RRF+HyDE hit@3 |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 关键词检索 | 8 | 8/8 | 8/8 | 8/8 | 8/8 | 8/8 | 8/8 | 8/8 | 8/8 |
-| 改写检索 | 13 | 4/13 | 5/13 | 5/13 | 12/13 | 5/13 | 12/13 | 5/13 | 13/13 |
-| 型号区分 | 1 | 1/1 | 1/1 | 1/1 | 1/1 | 1/1 | 1/1 | 1/1 | 1/1 |
-| 检索合计 | 22 | 13/22 | 14/22 | 14/22 | 21/22 | 14/22 | 21/22 | 14/22 | 22/22 |
-
-保守草稿 14 条：写出标准要点 12/14，写出禁用说法 0/14，费用 0。流程题 9 条：通过 9/9。
-
-关键词检索在这份小目录上几乎饱和。改写检索的 hit@1 只有 4/13 到 5/13，hit@3 要靠稠密或 RRF 才到 12/13，加上模板 HyDE 才到 13/13。逐题记录在 `knowledge_base/listing_data/reports/baseline.md`。
-
-## 系统怎么工作
-
-**导入手册**
-
-1. 看文件是 PDF 还是 Markdown。
-2. PDF 交给 MinerU，转成带标题的 Markdown。
-3. 手册里的图片上传到 MinIO，并用视觉模型写成文字说明。
-4. 按段落切开，每段前面带上所属标题。
-5. 认出这份手册在讲哪一款产品。
-6. 用 BGE-M3 同时做出语义向量和关键词向量。
-7. 写入 Milvus 的两个集合：`kb_item_names`（产品名）、`kb_chunks`（正文切片）。
-
-**回答问题**
-
-1. 结合聊天记录，确认用户在问哪款产品，并把问题改写清楚。
-2. 同时走三条搜索：向量搜索、假设性文档搜索（HyDE）、联网搜索。
-3. 用 RRF 把三路结果合成一份名单。
-4. 用重排序模型留下最相关的几段。
-5. 大模型根据这几段写出答案，网页上逐字显示。
-
-联网搜索和重排序 `qwen3-rerank` 都走百炼。`.env` 里 `WEB_SEARCH_ENABLE=true`，并填写 `DASHSCOPE_API_KEY` 后才会调用。2026-11-05 实测：搜索「北京今天天气」返回 5 条，第一条标题是「北京今日天气」；「连续播放 30 小时」的相关分是 0.6417，无关句是 0.2202。钥匙失效或额度用完时，搜索失败只用本地手册，重排序失败退回 RRF。
-
-导入流程图在 `app/import_process/agent/kb_import_workflow.py`，问答流程图在 `app/query_process/agent/kb_query_workflow.py`。另有一个 `kb_query_workflow_v2.py`，网站目前走第一版。
-
-## Listing 工作台
-
-页面在 <http://127.0.0.1:8002/listing.html>。
-
-![生成草稿，等待确认](docs/listing/draft.png)
-
-![确认后写入台账](docs/listing/written.png)
-
-上面两张图是 2026-11-05 用默认问题跑出来的：先给出带证据的草稿，点确认后状态变成「已经写入台账」。写入的是本机台账，不是真实店铺。
-
-流程：
-
-1. 确认型号。两个耳机都对得上时，先问你，不写草稿。
-2. 从 `listing_data/products` 找证据。
-3. 草稿来源可以选。`offline` 用证据原句拼标题和要点，不调用模型。`llm` 把同一份证据交给真实模型，模型只能填写标题、要点和缺口，输出先过 JSON Schema。资料没写的，例如防水，不会补进标题和要点。默认先走百炼的 `qwen-plus`，走不通再改 OpenAI 的 `gpt-6.1-terra`。两家都走不通，就用知识库里的原句。
-4. 规则检查通过后，等你点确认、拒绝或取消。确认才写入。原句、换一家模型、改用知识库，都是这样。
-5. 如果写入没有返回成功或失败，页面会让你核对，不会自动再写一遍。
-
-| 地址 | 作用 | 你要交的内容 | 返回 |
-| --- | --- | --- | --- |
-| `POST /api/listing/sessions` | 登录 | `user_id`、`password` | 令牌。之后的请求带 `Authorization: Bearer` |
-| `POST /api/listing/tasks` | 开始写草稿 | `query`。身份以令牌为准 | 任务编号、步骤、草稿、证据 |
-| `GET /api/listing/tasks/{task_id}` | 看当前进度 | 路径里的任务编号 | 同上 |
-| `GET /api/listing/stream/{task_id}` | 用 SSE 看步骤 | 任务编号 | 一步一步的事件 |
-| `POST /api/listing/tasks/{task_id}/confirm` | 确认写入 | `draft_version`。编辑身份来自令牌 | 写入回执 |
-| `POST /api/listing/tasks/{task_id}/reject` | 拒绝 | 名字和编辑身份 | 状态变为已拒绝 |
-| `POST /api/listing/tasks/{task_id}/cancel` | 取消 | 名字和编辑身份 | 状态变为已取消 |
-| `POST /api/listing/tasks/{task_id}/reconcile` | 结果不明时核对 | `found` 为 true 或 false | 核对后的状态 |
-
-未登录返回 401。看别人的任务、进度或会话返回 404。查看身份对自己的任务点确认返回 403。同一个幂等键、同一份内容会回到原任务；同一把键换了内容返回 409。`inject_write_unknown` 只在 `LISTING_TEST_MODE=1` 时接受。
-
-查看身份不能确认写入。草稿版本不对也不能写入。
-
-规则校验可以单独当 MCP 用。服务按官方 Python SDK 2.3.0 的 stdio 收发，一行一条 JSON。工作目录在 `knowledge_base`：
-
-```powershell
-python -m app.listing_agent.mcp_server
-python -m app.listing_agent.mcp_probe
-```
-
-第二条会用官方客户端做初始化、列出工具、调用和参数错误检查，并把记录写到 `listing_data/reports/mcp_client_record.json`。说明在 `app/listing_agent/SKILL.md`。工具只有查证据和检查草稿，不直接写入。
-
-真实模型和原句模板的对照不进冻结基线。配好模型密钥后另跑：
-
-```powershell
-python -m app.listing_agent.llm_compare
-```
-
-对照表在 `listing_data/reports/llm_compare.md`，每次调用的模型名、参数、提示版本、token、耗时和失败类型在 `llm_draft_telemetry.jsonl`。接口没返回用量时，这些数是空的，不会写成 0。
-
-`LISTING_USE_BGE=1` 才会加载 BGE-M3，失败就退回离线字块。Langfuse 三项都填了，任务记录才会发到云端；不填只写 `listing_data/runtime/traces.jsonl`。
-
-Listing 容器在 `deploy/Dockerfile.listing`。卷持久由 GitHub Actions 的 volume 任务验证，本机可选 Docker：
-
-```bash
-docker compose -f deploy/docker-compose.listing.yml up --build
-```
-
-还没做的事：没有连接真实店铺；台账和检查点是 SQLite，没有另加 PostgreSQL；默认草稿仍是原句模板，不调用付费模型；页面是一个 HTML；仓库里没有附带已经构建好的镜像。
-
-## 配置
-
-开关都在 `knowledge_base/.env`。先复制 `.env.example`，再填自己的值。样例里的密钥是占位符。
-
-| 配置 | 作用 |
-| --- | --- |
-| `OPENAI_API_KEY` / `OPENAI_BASE_URL` | 文本模型和看图模型 |
-| `LLM_DEFAULT_MODEL` / `VL_MODEL` | 模型名。样例里的文本模型只支持温度 1 |
-| `MINERU_API_TOKEN` | PDF 转 Markdown |
-| `DASHSCOPE_API_KEY` | 百炼联网搜索和 `qwen3-rerank` |
-| `WEB_SEARCH_ENABLE` | 设为 `true` 才走第三路联网搜索 |
-| `MILVUS_URL` | 向量库 |
-| `MINIO_ENDPOINT` | 手册图片 |
-| `MONGO_URL` | 问答聊天记录 |
-| `BGE_M3` / `BGE_M3_PATH` / `BGE_DEVICE` | 向量模型。`BGE_M3_PATH` 留空则按模型名下载 |
-| `TEXT_RERANK_MODEL` | 默认 `qwen3-rerank` |
-| `LISTING_ACCOUNTS` | 登录账号，格式 `用户:密码:角色:机构`。样例是「小明」/ `demo-pass`，只给本地演示，公开后请改掉 |
-| `LISTING_USE_BGE` | Listing 默认 `0`，不加载 BGE-M3 |
-| `LISTING_DRAFT_MODE` | `offline` 用原句模板；`llm` 才调用文本模型。页面上也可以切换 |
-| `LISTING_LLM_PROVIDER` | 默认 `bailian`。失败再换另一家，两家都失败用知识库原句 |
-| `LISTING_BAILIAN_MODEL` | 百炼草稿模型，默认 `qwen-plus`。同一条草稿上比 `qwen3.8-flash` 快。`qwen3-rerank` 只做问答重排序 |
-| `LISTING_OPENAI_MODEL` | 百炼失败后改用的 OpenAI 模型，默认 `gpt-6.1-terra`。问答仍用 `LLM_DEFAULT_MODEL` |
-| `LISTING_LLM_TIMEOUT_S` | 真实模型草稿的超时秒数 |
-| `LISTING_LLM_USD_PER_MILLION_PROMPT` / `LISTING_LLM_USD_PER_MILLION_COMPLETION` | 两项都有，才用 token 算费用。缺了就留空 |
-
-## 许可
-
-采用 [MIT](LICENSE) 许可。参与方式见 [CONTRIBUTING.md](CONTRIBUTING.md)。安全问题见 [SECURITY.md](SECURITY.md)。
+[参与贡献](CONTRIBUTING.md) · [安全问题](SECURITY.md) · [MIT 许可](LICENSE)

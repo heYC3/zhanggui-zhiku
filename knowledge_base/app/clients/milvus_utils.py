@@ -171,6 +171,11 @@ def hybrid_search(client, collection_name, reqs, ranker_weights=(0.5, 0.5), norm
     :return: 混合搜索结果列表，搜索失败返回None
     """
     try:
+        # 本机 Milvus Lite 重启后集合是未加载状态，搜索前先加载
+        try:
+            client.load_collection(collection_name)
+        except Exception as load_error:
+            logger.warning(f"加载集合[{collection_name}]时：{load_error}")
         # 初始化加权排名器：按权重融合稠密/稀疏向量的搜索结果
         # norm_score=True：先将两个向量评分归一化到0~1区间，再加权计算，避免一个得分特别大、另一个特别小导致权重失效。
         # 旧版本写法（2.4）

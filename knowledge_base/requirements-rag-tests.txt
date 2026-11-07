@@ -1,0 +1,9 @@
+# 合成RAG契约测试，不含PyTorch、Milvus或真实模型调用。
+pymongo>=4.16
+python-dotenv>=1.2
+fastapi>=0.115
+httpx>=0.27
+pillow>=11
+pypdf>=6,<7
+langchain-openai>=1.1.11
+loguru>=0.7

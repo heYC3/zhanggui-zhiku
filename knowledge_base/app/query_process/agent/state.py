@@ -23,16 +23,24 @@ class QueryGraphState(TypedDict):
     # 排序过程中的数据
     rrf_chunks: list  # RRF 融合排序后的切片
     reranked_docs: list  # 重排序后的最终 Top-K 文档
+    context_docs: list  # 实际放进答案提示词的完整证据（已应用字符预算）
 
     # 生成过程中的数据
     prompt: str  # 组装好的 Prompt
     answer: str  # 最终生成的答案
+    image_urls: list  # 仅来自实际生成上下文的图片
 
     # 辅助信息
     item_names: List[str]  # 提取出的商品名称
     rewritten_query: str  # 改写后的问题
     history: list  # 历史对话记录
     is_stream: bool  # 是否流式输出标记
+    routing_method: str
+    routing_status: str
+    embedding_error: str
+    hyde_error: str
+    hyde_doc: str
+    rerank_error: str
 
 
 # 定义图状态的默认初始值
@@ -45,12 +53,20 @@ graph_default_state: QueryGraphState = {
     "web_search_docs": [],
     "rrf_chunks": [],
     "reranked_docs": [],
+    "context_docs": [],
     "prompt": "",
     "answer": "",
+    "image_urls": [],
     "item_names": [],
     "rewritten_query": "",
     "history": [],
-    "is_stream": False
+    "is_stream": False,
+    "routing_method": "",
+    "routing_status": "",
+    "embedding_error": "",
+    "hyde_error": "",
+    "hyde_doc": "",
+    "rerank_error": "",
 }
 
 

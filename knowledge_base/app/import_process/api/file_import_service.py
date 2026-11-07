@@ -33,6 +33,9 @@ app = FastAPI(
 )
 
 # 跨域中间件配置：解决前端调用后端接口的跨域限制
+from app.evidence.manual_assets import router as manual_assets_router
+app.include_router(manual_assets_router)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # 允许所有前端域名访问（生产环境建议指定具体域名）

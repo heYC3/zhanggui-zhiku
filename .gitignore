@@ -36,6 +36,11 @@ Thumbs.db
 # 厂商用户手册，不放进仓库
 knowledge_base/data/samples/*.pdf
 
+# 私有评测集：题目、答案、跑分报告只放本机，绝不提交、不进公开仓、不进 CI
+# .env 已由上面的 .env / **/.env 覆盖。放题目前用下面命令复核：
+#   git check-ignore -v knowledge_base/.env .env knowledge_base/eval_private/
+knowledge_base/eval_private/
+
 # 笔记、求职草稿和本机环境记录，不进仓库。
 学习指南.md
 交付/

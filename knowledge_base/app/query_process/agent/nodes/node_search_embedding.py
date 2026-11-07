@@ -35,18 +35,17 @@ class NodeSearchEmbedding(NodeBase):
         """
 
         try:
-            from app.evidence.store import as_query_hit, retrieve_product_evidence
+            from app.evidence.store import as_query_hit, retrieve_products_evidence
 
             query = state.get("rewritten_query") or ""
             item_names = state.get("item_names") or []
-            product_id = item_names[0] if item_names else None
-            found = retrieve_product_evidence(query, product_id=product_id, strategy="rrf", limit=5)
+            found = retrieve_products_evidence(query, item_names, strategy="rrf", limit_per_product=12)
             add_done_task(state["session_id"], self.name)
-            return {"embedding_chunks": [as_query_hit(row) for row in found["evidence"]]}
+            return {"embedding_chunks": [as_query_hit(row) for row in found], "embedding_error": ""}
 
         except Exception as e:
             logger.exception(f"向量搜索失败: {e}")
-            return {}
+            return {"embedding_chunks": [], "embedding_error": type(e).__name__}
 
 if __name__ == "__main__":
 

@@ -56,11 +56,12 @@ class NodeSearchEmbeddingHyde(NodeBase):
             return {
                 "hyde_embedding_chunks": hits,
                 "hyde_doc": hyde_doc,
+                "hyde_error": "",
             }
 
         except Exception as e:
             logger.exception(f"假设性文档向量搜索失败: {e}")
-            return {}
+            return {"hyde_embedding_chunks": [], "hyde_error": type(e).__name__}
 
     def _step_1_create_hyde_doc(self, rewritten_query: str) -> str:
         """
@@ -119,17 +120,15 @@ class NodeSearchEmbeddingHyde(NodeBase):
         """
 
         try:
-            from app.evidence.store import as_query_hit, retrieve_product_evidence
-
-            product_id = item_names[0] if item_names else None
+            from app.evidence.store import as_query_hit, retrieve_products_evidence
             combined_text = (rewritten_query or "") + " " + (hyde_doc or "")
-            found = retrieve_product_evidence(
+            found = retrieve_products_evidence(
                 combined_text,
-                product_id=product_id,
+                item_names or [],
                 strategy="rrf_hyde",
-                limit=top_k,
+                limit_per_product=top_k,
             )
-            return [as_query_hit(row) for row in found["evidence"]]
+            return [as_query_hit(row) for row in found]
         except Exception as exc:
             logger.error(f"步骤2: 检索过程发生异常: {exc}")
             raise

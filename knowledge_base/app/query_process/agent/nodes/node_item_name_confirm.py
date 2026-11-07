@@ -15,6 +15,19 @@ from app.query_process.agent.state import QueryGraphState, create_default_state
 from app.utils.task_utils import add_done_task
 
 
+def _history_from_state(raw) -> List[Dict]:
+    """把调用方传入的 history 收成 {role, text}。字符串视为上一轮用户问题。"""
+    normalized = []
+    for item in raw or []:
+        if isinstance(item, str) and item.strip():
+            normalized.append({"role": "user", "text": item.strip()})
+        elif isinstance(item, dict):
+            text = item.get("text") or item.get("content") or ""
+            if str(text).strip():
+                normalized.append({"role": item.get("role") or "user", "text": str(text)})
+    return normalized
+
+
 class NodeItemNameConfirm(NodeBase):
     """
     节点功能：确认用户问题中的核心商品名称。
@@ -36,8 +49,11 @@ class NodeItemNameConfirm(NodeBase):
         session_id, original_query = self._step_1_validate_param(state)
         logger.info(f"步骤1：参数校验通过")
 
-        # 步骤2：获取历史记录
+        # 步骤2：获取历史记录。库里没有时，用本次调用带进来的 history
+        # （私有评测脚本把上一问写成字符串列表传进来，指代续问要靠它）
         history = get_recent_messages(session_id)
+        if not history:
+            history = _history_from_state(state.get("history") or [])
         logger.info(f"步骤2：获取到 {len(history)} 条历史消息")
         # 更新状态
         state["history"] = history
@@ -46,22 +62,22 @@ class NodeItemNameConfirm(NodeBase):
         message_id = save_chat_message(session_id, "user", original_query)
         logger.info(f"步骤3：用户消息已初始保存, ID: {message_id}")
 
-        # 步骤4：提取信息
-        extract_res = self._step_4_extract_info(original_query, history)
-        item_names = extract_res.get("item_names", [])
-        rewritten_query = extract_res.get("rewritten_query", original_query)
-        # 更新状态
+        from app.evidence.identity import load_manual_catalog, resolve_product_context
+
+        resolved = resolve_product_context(original_query, history, load_manual_catalog())
+        item_names = resolved["item_names"]
+        state["routing_method"] = resolved["method"]
+        # 有上下文时仍让模型处理省略词，但型号只由目录的精确匹配决定。
+        rewritten_query = original_query
+        if item_names and history:
+            extract_res = self._step_4_extract_info(original_query, history)
+            rewritten_query = extract_res.get("rewritten_query") or original_query
+        if item_names:
+            rewritten_query = "关于" + "、".join(item_names) + "：" + rewritten_query
         state["rewritten_query"] = rewritten_query
         state["item_names"] = item_names
-
-        # 5. & 6. 如果有提取到商品名，进行搜索和对齐
-        align_result = {}
-        if len(item_names) > 0:
-            query_results = self._step_5_vectorize_and_query(item_names)
-            align_result = self._step_6_align_item_names(query_results)
-
-        else:
-            logger.info("Node: 未提取到商品名，跳过向量检索")
+        state["routing_status"] = "resolved" if item_names else "clarify"
+        align_result = {"confirmed_item_names": item_names, "options": []}
 
         # 7. 检查确认状态
         state = self._step_7_check_confirmation(state, align_result, history)
@@ -69,7 +85,9 @@ class NodeItemNameConfirm(NodeBase):
         # 8. 写入最终历史
         self._step_8_write_history(state, session_id, rewritten_query, message_id)
         add_done_task(state["session_id"], self.name)
-        return state
+        # 只返回本节点负责的字段，避免并发节点回写整个状态。
+        return {key: state[key] for key in ("history", "rewritten_query", "item_names", "answer",
+                                           "routing_method", "routing_status")}
 
     def _step_1_validate_param(self, state: QueryGraphState) -> Tuple[str, str]:
 

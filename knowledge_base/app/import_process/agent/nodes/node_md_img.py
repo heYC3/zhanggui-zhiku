@@ -108,17 +108,26 @@ class NodeMdImg(NodeBase):
         :return: 图片引用替换后的新MD内容
         """
 
+        if os.getenv('MANUAL_IMAGE_BACKEND', 'local').lower() == 'local':
+            from app.evidence.manual_assets import publish_image
+            urls = {name: publish_image(path) for name, path, _ in target_images}
+            return self._process_md_file(md_content, self._merge_summary_and_url(summaries, urls))
+
         # 1、获取MinIO客户端
         from app.clients.minio_utils import get_minio_client
         minio_client = get_minio_client()
+        if minio_client is None:
+            raise RuntimeError('MinIO图片后端不可用；可配置 MANUAL_IMAGE_BACKEND=local')
 
         # 2、获取MinIO的上传目录
         minio_img_dir = minio_config.minio_img_dir
         # object name
         upload_dir = f"{minio_img_dir}/{doc_stem}".replace(" ", "")
 
-        # 步骤1：清理该文档对应的MinIO旧目录
-        self._clean_minio_directory(minio_client, upload_dir)
+        # 内容寻址目录保留旧版本图片，不清理已有手册。
+        import hashlib
+        digest = hashlib.sha256(md_content.encode('utf-8')).hexdigest()[:16]
+        upload_dir += '/' + digest
 
         # 步骤2：批量上传图片至MinIO，获取URL映射
         urls = self._upload_images_batch(minio_client, upload_dir, target_images)
@@ -188,7 +197,8 @@ class NodeMdImg(NodeBase):
 
             # http://192.168.100.101:9000/knowledge-base-files/upload-images/hak180产品安全手册/name.jpg
             protocol  = "https" if minio_config.minio_secure else "http"
-            img_url = f"{protocol}://{minio_config.endpoint}/{minio_config.bucket_name}/{object_name}"
+            from urllib.parse import quote
+            img_url = f"{protocol}://{minio_config.endpoint}/{minio_config.bucket_name}/{quote(object_name, safe='/')}"
 
             logger.info(f"图片上传成功，访问URL：{img_url}")
             return img_url
@@ -308,6 +318,8 @@ class NodeMdImg(NodeBase):
         # 2、将图片进行base64编码
         with open(image_path, "rb") as img_file:
             base64_image = base64.b64encode(img_file.read()).decode("utf-8")
+        import mimetypes
+        image_mime = mimetypes.guess_type(image_path)[0] or 'application/octet-stream'
 
         # 3、构建LangChain的message对象
         messages = [
@@ -320,7 +332,7 @@ class NodeMdImg(NodeBase):
                     {
                         "type": "image_url",
                         "image_url": {
-                            "url": f"data:image/jpeg;base64,{base64_image}"
+                            "url": f"data:{image_mime};base64,{base64_image}"
                         }
                     }
                 ]

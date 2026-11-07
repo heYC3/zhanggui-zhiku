@@ -3,6 +3,8 @@
 output
 logs
 temp-files
+eval_private
+.cache
 models
 listing_data/runtime
 **/__pycache__

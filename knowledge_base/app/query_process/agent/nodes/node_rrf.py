@@ -35,22 +35,21 @@ class NodeRrf(NodeBase):
         rrf_inputs = list(search_source.values())
 
         # 4. 利用RRF的计算公式去获取到所有路查询到的所有chunk对应的score
-        rrf_merge_results = self._rrf_merge(rrf_inputs, k=60, max_results=10)
+        from app.evidence.manual_retrieval import fuse_by_product
+        rrf_chunks = fuse_by_product([docs for docs, _ in rrf_inputs], state.get('item_names') or [], per_product=12)
 
         # 5. 获取rrf_chunks（只取文档，不要分数）
-        rrf_chunks = [doc for doc, _ in rrf_merge_results]
+        # 已按产品独立融合，不再将多个产品拼成一条排名后全局截断。
         logger.info(f"RRF 融合完成，返回 {len(rrf_chunks)} 条结果")
 
         # 6. 记录分数范围（便于调试）
-        scores = [s for _, s in rrf_merge_results]
-        logger.info(f"分数范围: [{min(scores):.6f}, {max(scores):.6f}]")
+        # 每个产品都保留自己的候选配额，重排节点再决定上下文长度。
 
         # 7. 更新state
-        state['rrf_chunks'] = rrf_chunks
 
         add_done_task(state["session_id"], self.name)
         # 8. 返回state
-        return state
+        return {"rrf_chunks": rrf_chunks}
 
     def _normalize_input(self, rrf_input: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """

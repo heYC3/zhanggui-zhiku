@@ -44,6 +44,16 @@ class NodePdfToMd(NodeBase):
         with open(md_path, 'r', encoding="utf-8") as f:
             md_content = f.read()
 
+        from app.evidence.pdf_text import recover_cover_text
+        import json
+        md_content, audit = recover_cover_text(pdf_path_obj, md_content)
+        Path(md_path).with_suffix('.cover_audit.json').write_text(
+            json.dumps(audit, ensure_ascii=False, indent=2), encoding='utf-8')
+        if audit['status'] == 'supplemented':
+            supplemented = Path(md_path).with_name(Path(md_path).stem + '_text_recovered.md')
+            supplemented.write_text(md_content, encoding='utf-8')
+            md_path = str(supplemented)
+
         # 步骤5：更新state状态值
         state["md_content"] = md_content
         state["md_path"] = md_path

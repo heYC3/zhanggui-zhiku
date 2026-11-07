@@ -2,6 +2,8 @@
 import os
 # 导入日志模块：用于记录程序运行日志（成功/失败/错误信息）
 import logging
+import threading
+import time
 # 导入类型注解模块：用于函数参数/返回值的类型提示，提升代码可读性和规范性
 from typing import List, Dict, Any, Optional
 # 导入时间模块：用于生成时间戳，记录对话的创建时间
@@ -36,7 +38,9 @@ class HistoryMongoTool:
             self.db_name = os.getenv("MONGO_DB_NAME")
 
             # 创建MongoDB客户端实例，建立与数据库的连接
-            self.client = MongoClient(self.mongo_url)
+            timeout_ms = int(os.getenv("MONGO_TIMEOUT_MS", "2500"))
+            self.client = MongoClient(self.mongo_url, serverSelectionTimeoutMS=timeout_ms,
+                                      connectTimeoutMS=timeout_ms, socketTimeoutMS=timeout_ms)
             # 获取指定名称的数据库对象
             self.db = self.client[self.db_name]
             # 获取对话记录的集合（相当于关系型数据库的表），集合名：chat_message
@@ -50,6 +54,8 @@ class HistoryMongoTool:
             # 记录成功日志，确认数据库连接和初始化完成
             logging.info(f"Successfully connected to MongoDB: {self.db_name}")
         except Exception as e:
+            if getattr(self, "client", None) is not None:
+                self.client.close()
             # 捕获所有初始化异常，记录详细错误日志
             logging.error(f"Failed to connect to MongoDB: {e}")
             # 重新抛出异常，让调用方感知初始化失败，避免使用未初始化的实例
@@ -59,27 +65,27 @@ class HistoryMongoTool:
 # 定义全局变量：存储HistoryMongoTool的单例实例
 # 作用：避免多次创建HistoryMongoTool实例，从而避免重复建立MongoDB连接
 _history_mongo_tool = None
-# 模块加载时尝试初始化单例实例，实现预加载
-# 目的：将数据库连接的初始化提前到模块加载阶段，避免第一次调用接口时才建立连接（提升首次响应速度）
-try:
-    _history_mongo_tool = HistoryMongoTool()
-except Exception as e:
-    # 初始化失败时仅记录警告日志，不抛出异常
-    # 原因：模块加载阶段的异常可能导致整个程序启动失败，此处保留懒加载兜底（get_history_mongo_tool会再次尝试创建）
-    logging.warning(f"Could not initialize HistoryMongoTool on module load: {e}")
+# 按需初始化；数据库不可用不阻塞模块导入，连接失败后短暂退避。
+_history_retry_after = 0.0
+_history_init_lock = threading.Lock()
 
-def get_history_mongo_tool() -> HistoryMongoTool:
+def get_history_mongo_tool() -> Optional[HistoryMongoTool]:
     """
     获取HistoryMongoTool的单例实例（懒加载模式）
     核心逻辑：全局实例为空时创建，不为空时直接返回，保证整个程序只有一个数据库连接实例
     :return: HistoryMongoTool的单例实例
     """
     # 声明使用全局变量，避免函数内视为局部变量
-    global _history_mongo_tool
-    # 懒加载：仅当全局实例为空时，才创建新的实例
-    if _history_mongo_tool is None:
-        _history_mongo_tool = HistoryMongoTool()
-    # 返回单例实例
+    global _history_mongo_tool, _history_retry_after
+    if os.getenv("CHAT_HISTORY_ENABLE", "true").lower() not in ("1", "true", "yes"):
+        return None
+    with _history_init_lock:
+        if _history_mongo_tool is None and time.monotonic() >= _history_retry_after:
+            try:
+                _history_mongo_tool = HistoryMongoTool()
+            except Exception:
+                _history_retry_after = time.monotonic() + 30
+                logging.warning("历史数据库不可用，30 秒内不再重复连接；调用方应保留会话上下文")
     return _history_mongo_tool
 
 
@@ -92,6 +98,8 @@ def clear_history(session_id: str) -> int:
     """
     # 获取全局的HistoryMongoTool实例，使用单例模式避免重复创建数据库连接
     mongo_tool = get_history_mongo_tool()
+    if mongo_tool is None:
+        return 0
     try:
         # 执行批量删除操作：删除所有session_id匹配的文档
         result = mongo_tool.chat_message.delete_many({"session_id": session_id})
@@ -141,22 +149,22 @@ def save_chat_message(
         "ts": ts  # 时间戳，排序和时间筛选维度
     }
 
-    # 获取全局的HistoryMongoTool实例，使用单例模式
-    mongo_tool = get_history_mongo_tool()
-    # 判断是否传入主键ID，区分更新/新增逻辑
-    if message_id:
-        # 有message_id：执行更新操作（根据主键更新）
-        result = mongo_tool.chat_message.update_one(
-            {"_id": ObjectId(message_id)},  # 更新条件：主键匹配（需将字符串转为ObjectId类型）
-            {"$set": document}  # 更新操作：$set表示只更新指定字段，保留其他字段
-        )
-        # 更新操作返回传入的message_id作为标识
-        return message_id
-    else:
-        # 无message_id：执行新增操作
+    # 实验室 Mongo 连不上时，问答检索仍要继续，不能把整次查询打成失败
+    try:
+        mongo_tool = get_history_mongo_tool()
+        if mongo_tool is None:
+            return message_id or ""
+        if message_id:
+            mongo_tool.chat_message.update_one(
+                {"_id": ObjectId(message_id)},
+                {"$set": document},
+            )
+            return message_id
         result = mongo_tool.chat_message.insert_one(document)
-        # 新增操作返回插入的ObjectId并转为字符串，便于上层使用（避免直接返回ObjectId对象）
         return str(result.inserted_id)
+    except Exception as e:
+        logging.error(f"Error saving chat message: {e}")
+        return message_id or ""
 
 
 def update_message_item_names(ids: List[str], item_names: List[str]) -> int:
@@ -168,6 +176,8 @@ def update_message_item_names(ids: List[str], item_names: List[str]) -> int:
     """
     # 获取全局的HistoryMongoTool实例，使用单例模式
     mongo_tool = get_history_mongo_tool()
+    if mongo_tool is None:
+        return 0
     try:
         # 将字符串类型的主键列表转为MongoDB的ObjectId类型（数据库中主键是ObjectId类型）
         object_ids = [ObjectId(i) for i in ids]
@@ -198,19 +208,21 @@ def get_recent_messages(session_id: str, limit: int = 10) -> List[Dict[str, Any]
     :param limit: 条数限制，默认返回最近10条
     :return: 对话记录列表（字典格式），查询失败返回空列表
     """
-    # 获取全局的HistoryMongoTool实例，使用单例模式
-    mongo_tool = get_history_mongo_tool()
+    # 历史库连不上就当没有上文，不能让检索因此中断
     try:
+        mongo_tool = get_history_mongo_tool()
+        if mongo_tool is None:
+            return []
         # 构造查询条件：仅查询指定session_id的记录
         query = {"session_id": session_id}
 
         # 执行查询：按时间戳升序排序，限制返回条数
         # find(query)：获取符合条件的游标（惰性加载，不立即查询）
-        # sort("ts", ASCENDING)：按ts字段升序（从旧到新），适配LLM上下文顺序
+        # 先取最近的 N 条，再转成从旧到新的上下文；不能升序截出最早 N 条。
         # limit(limit)：限制返回的最大条数
-        cursor = mongo_tool.chat_message.find(query).sort("ts", ASCENDING).limit(limit)
+        cursor = mongo_tool.chat_message.find(query).sort("ts", -1).limit(limit)
         # 将游标转为列表，触发实际数据库查询，获取所有符合条件的文档
-        messages = list(cursor)
+        messages = list(reversed(list(cursor)))
         # 返回查询结果列表
         return messages
     except Exception as e:

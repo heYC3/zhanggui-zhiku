@@ -22,6 +22,12 @@ def get_bge_m3_ef():
     with _bge_m3_lock:
         if _bge_m3_ef is not None:
             return _bge_m3_ef
+        return _initialize_bge_model()
+
+
+def _initialize_bge_model():
+    """调用者持有加载锁，直到构造与预热均成功才释放。"""
+    global _bge_m3_ef
 
     # 从环境变量加载配置，无配置则使用默认值
     # 本地有可以使用本地地址！ 没有使用 "BAAI/bge-m3" 会自动下载！ 如果云端部署也可以使用url地址！
@@ -49,14 +55,15 @@ def get_bge_m3_ef():
         # 所以加载后立刻做一次预热编码验证；失败就清空单例重试，绝不让坏模型留在进程里。
         for attempt in range(1, 4):
             try:
-                _bge_m3_ef = BGEM3EmbeddingFunction(
+                candidate = BGEM3EmbeddingFunction(
                     model_name=model_name,
                     device=device,
                     use_fp16=use_fp16,
                     normalize_embeddings=True  # 模型原生对稠密+稀疏向量做L2归一化
                 )
                 # 预热编码：验证模型真的能用（能吐出稠密向量）
-                _bge_m3_ef.encode_documents(["模型预热测试"])
+                candidate.encode_documents(["模型预热测试"])
+                _bge_m3_ef = candidate
                 logger.success(f"BGE-M3模型初始化成功（第{attempt}次尝试），已开启原生L2归一化")
                 return _bge_m3_ef
             except Exception as load_error:

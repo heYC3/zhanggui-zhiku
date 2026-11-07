@@ -1,8 +1,11 @@
-name: listing-agent
+name: project-checks
 
 on:
   push:
   pull_request:
+
+env:
+  PYTHON_DOTENV_DISABLED: "1"
 
 jobs:
   test:
@@ -23,6 +26,21 @@ jobs:
         run: |
           python -m app.listing_agent.eval
           git diff --exit-code -- listing_data/reports/baseline.md
+
+  rag-contracts:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: knowledge_base
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install small synthetic RAG test dependencies
+        run: pip install -r requirements-rag-tests.txt
+      - name: Verify identity, evidence scoring, and history fallback
+        run: python -m unittest discover -s test/rag -v
 
   volume:
     runs-on: ubuntu-latest
