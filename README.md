@@ -10,6 +10,8 @@
 
 技术栈：**Python · FastAPI · LangGraph · BGE-M3 · Milvus · SQLite · SSE · MCP**。
 
+**在线入口：**[Listing 测试版](https://zhanggui.pythonanywhere.com/)（需要授权账号，仅本人测试）。云端只部署 Listing 与公开自编商品；手册导入和 RAG 问答在本机运行。详见[部署验收与范围](docs/pythonanywhere.md)。
+
 ## 项目演示
 
 **问答：完整型号提问，保留资料中的使用限制。** 下图使用公开自编 X1 资料、离线证据后端与真实模型；关闭联网，不是远程 Milvus 入库后的验收。
@@ -59,6 +61,8 @@
 私有题在来源核对后封存，系统固定后只运行一次；同一开发者借助 Codex 实现、出题和复核，**不是独立人工盲评**。公开仓库提供方法、合成测试和脱敏汇总，原手册、题目和完整运行留在本机。
 
 完整口径、来源摘要与限制见 [评测说明](docs/evaluation.md)；Listing 原始公开记录见 [基线](knowledge_base/listing_data/reports/baseline.md)、[故障与恢复](knowledge_base/listing_data/reports/durability.md)。
+
+[2026-11-08 发布自检](docs/self-audit-2026-11-08.md)：核对三步结果、实时 DRAFT 状态、在线访问边界、私有验收封存和展示文案。
 
 ## 快速运行
 

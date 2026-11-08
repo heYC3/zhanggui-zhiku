@@ -1,7 +1,7 @@
 [project]
 name = "knowledge-base"
 version = "0.1.0"
-description = "掌柜智库：电商设备手册的导入与问答，LangGraph 编排的 RAG 系统"
+description = "掌柜智库：基于 LangGraph 的商品资料 RAG 问答与受控 Listing Agent"
 requires-python = ">=3.11"
 dependencies = [
     "grandalf>=0.8",

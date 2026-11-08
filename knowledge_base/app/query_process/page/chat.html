@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-  <title>掌柜智库知识库</title>
+  <title>掌柜智库 · 商品资料问答</title>
   <style>
     :root{
       --bg:#f3f5f7;
@@ -266,8 +266,8 @@
       <div class="brand">
         <div class="logo"></div>
         <div class="title">
-          <strong>掌柜智库知识库</strong>
-          <span id="subTitle">在线 · 可查询知识库与联网信息</span>
+          <strong>掌柜智库</strong>
+          <span id="subTitle">商品资料问答 · 按型号查证据</span>
         </div>
       </div>
       <div class="top-actions">
@@ -284,8 +284,8 @@
       <div class="msg bot">
         <div class="avatar bot">掌柜智库</div>
         <div>
-          <div class="bubble">你好，我是掌柜智库知识库客服。你可以直接提问，我会在“阶段进度”里展示处理过程。</div>
-          <div class="meta">提示：可以问“如何使用万用表测量电压？”</div>
+          <div class="bubble">你好，我是掌柜智库。请提供商品型号和问题，我会根据资料作答，并展示处理进度。</div>
+          <div class="meta">提示：可以问“掌柜示例耳机 X1 续航多久？这个时间包括通话吗？”</div>
         </div>
       </div>
     </div>
@@ -592,7 +592,9 @@
       const summary = details.querySelector('summary');
       const ul = details.querySelector('ul');
       const done = Array.isArray(doneList) ? doneList : [];
-      const running = Array.isArray(runningList) ? runningList : [];
+      const terminal = ['completed', 'failed', 'answered'].includes(status);
+      const running = !terminal && Array.isArray(runningList) ? runningList : [];
+      details.dataset.doneList = JSON.stringify(done);
       const totalDone = done.length;
       const totalRun = running.length;
 
@@ -601,6 +603,7 @@
         'completed': '已完成',
         'failed': '失败',
         'pending': '等待中',
+        'answered': '答案已返回',
       };
       const displayStatus = statusMap[status] || status || 'unknown';
 
@@ -620,10 +623,19 @@
       }
     }
 
+    function finalizeProgress(botMsgEl, status, doneList){
+      const details = botMsgEl.querySelector('details.progress');
+      if(!details) return;
+      const done = Array.isArray(doneList) ? doneList : JSON.parse(details.dataset.doneList || '[]');
+      renderProgress(botMsgEl, done, [], status);
+      details.removeAttribute('open');
+    }
+
     function finalizeBotAnswer(botMsgEl, answer, error, imageUrls){
       const bubble = botMsgEl.querySelector('.bubble');
       const progress = botMsgEl.querySelector('details.progress');
       const err = (error || '').trim();
+      finalizeProgress(botMsgEl, err ? 'failed' : 'completed');
 
       if(err){
         const progressEl = progress ? progress : null;
@@ -808,6 +820,7 @@
             // 流式 delta 可能不包含“【图片】/图片列表”，最终包的 d.answer 才是完整答案；优先使用 d.answer
             const finalText = (d && typeof d.answer === 'string' && d.answer.trim().length > 0) ? d.answer : (rawAnswerText || answerEl.textContent || '');
             renderAnswerWithImages(answerEl, finalText, d.image_urls || []);
+            finalizeProgress(botMsgEl, d.error ? 'failed' : 'completed', d.done_list);
           }catch(_){}
           es.close();
           sendBtn.disabled = false;
@@ -824,12 +837,15 @@
             const d = JSON.parse(e.data || '{}');
             const finalText = (d && typeof d.answer === 'string' && d.answer.trim().length > 0) ? d.answer : (rawAnswerText || answerEl.textContent || '');
             renderAnswerWithImages(answerEl, finalText, d.image_urls || []);
+            // 节点答案事件不等同于整个后台任务完成，明确显示已收到答案。
+            finalizeProgress(botMsgEl, d.error ? 'failed' : 'answered', d.done_list);
           }catch(_){}
           es.close();
           sendBtn.disabled = false;
         });
 
         es.addEventListener('error', (e) => {
+          finalizeProgress(botMsgEl, 'failed');
           const typing = botMsgEl.querySelector('.typing');
           if(typing) typing.remove();
           // 收起进度条
@@ -848,6 +864,7 @@
           sendBtn.disabled = false;
         });
       }catch(e){
+        finalizeProgress(botMsgEl, 'failed');
         const bubble = botMsgEl.querySelector('.bubble');
         const progress = botMsgEl.querySelector('details.progress');
         const typing = botMsgEl.querySelector('.typing');
