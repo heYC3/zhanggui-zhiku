@@ -32,7 +32,9 @@ python -m app.listing_agent
 
 打开 <http://127.0.0.1:8002/listing.html>，使用上述演示账号。输入明确商品型号，检查证据与草稿，确认后查看写入回执。测试相近型号时可分别使用X1和X1 Pro。
 
-服务仅绑定本机。演示账号不能用于公网部署；服务端账号、角色和机构由`LISTING_ACCOUNTS`配置。实际数据默认落在已忽略的`listing_data/runtime/`。
+服务默认仅绑定本机；`LISTING_HOST` / `PORT` 可配置监听。演示账号不能用于公网部署；服务端账号、角色和机构由`LISTING_ACCOUNTS`配置。实际数据默认落在已忽略的`listing_data/runtime/`。未登录访问工作台会转到登录页。
+
+PythonAnywhere 免费在线测试版与验收结果见[平台部署记录](pythonanywhere.md)，Docker/Caddy 备用配置见[在线部署](deployment.md)。本轮已验收外部登录、真实 DRAFT、重载和备份恢复，仅本人测试。
 
 ## Shopify 测试店
 

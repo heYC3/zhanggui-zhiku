@@ -7,6 +7,7 @@ import hmac
 import os
 import secrets
 import sqlite3
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -51,6 +52,10 @@ class AuthStore:
             """
         )
         self._conn.commit()
+        columns = {row[1] for row in self._conn.execute("PRAGMA table_info(sessions)")}
+        if "expires_at" not in columns:
+            self._conn.execute("ALTER TABLE sessions ADD COLUMN expires_at REAL NOT NULL DEFAULT 0")
+            self._conn.commit()
 
     def close(self) -> None:
         self._conn.close()
@@ -58,6 +63,12 @@ class AuthStore:
     def register(self, user_id: str, password: str, role: str, org_id: str) -> None:
         if role not in {"editor", "viewer"}:
             raise ValueError("身份只能是编辑或查看")
+        user_id = user_id.strip()
+        old = self._conn.execute("SELECT * FROM accounts WHERE user_id = ?", (user_id,)).fetchone()
+        if old and hmac.compare_digest(_hash_password(password, bytes.fromhex(old["salt"])), old["password_hash"]):
+            if old["role"] == role and old["org_id"] == org_id.strip():
+                return
+        self._conn.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
         salt = secrets.token_bytes(16)
         self._conn.execute(
             """
@@ -86,8 +97,8 @@ class AuthStore:
             return None
         token = secrets.token_urlsafe(32)
         self._conn.execute(
-            "INSERT INTO sessions (token_hash, user_id, role, org_id) VALUES (?, ?, ?, ?)",
-            (_hash_token(token), user_id.strip(), row["role"], row["org_id"]),
+            "INSERT INTO sessions (token_hash, user_id, role, org_id, expires_at) VALUES (?, ?, ?, ?, ?)",
+            (_hash_token(token), user_id.strip(), row["role"], row["org_id"], time.time() + 12 * 3600),
         )
         self._conn.commit()
         return token
@@ -96,12 +107,16 @@ class AuthStore:
         if not token:
             return None
         row = self._conn.execute(
-            "SELECT user_id, role, org_id FROM sessions WHERE token_hash = ?",
-            (_hash_token(token),),
+            "SELECT user_id, role, org_id FROM sessions WHERE token_hash = ? AND expires_at > ?",
+            (_hash_token(token), time.time()),
         ).fetchone()
         if row is None:
             return None
         return SessionActor(row["user_id"], row["role"], row["org_id"])
+
+    def revoke(self, token: str) -> None:
+        self._conn.execute("DELETE FROM sessions WHERE token_hash = ?", (_hash_token(token),))
+        self._conn.commit()
 
 
 def load_accounts_from_env(store: AuthStore) -> None:
@@ -117,3 +132,9 @@ def load_accounts_from_env(store: AuthStore) -> None:
         if role not in {"editor", "viewer"}:
             continue
         store.register(user_id, password, role, org_id)
+    from app.listing_agent.deployment import public_mode
+    if public_mode():
+        owner = raw.split(":", 1)[0].strip()
+        store._conn.execute("DELETE FROM sessions WHERE user_id != ?", (owner,))
+        store._conn.execute("DELETE FROM accounts WHERE user_id != ?", (owner,))
+        store._conn.commit()

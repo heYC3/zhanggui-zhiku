@@ -240,9 +240,11 @@ class ListingApiTest(unittest.TestCase):
         page = self.client.get("/listing.html")
         self.assertEqual(page.status_code, 200)
         self.assertIn("登录", page.text)
+        self.assertEqual(page.url.path, "/login.html")
+        token = self._token("小明", "pw-editor")
+        page = self.client.get("/listing.html", headers=self._headers(token))
         self.assertIn("原句模板，不调用模型", page.text)
         self.assertIn("真实模型，仍要人工确认", page.text)
-        token = self._token("小明", "pw-editor")
         created = self.client.post(
             "/api/listing/tasks",
             headers=self._headers(token),

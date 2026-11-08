@@ -1,5 +1,8 @@
 .env
 **/.env
+*.env
+**/*.env
+!deploy/online.env.example
 output
 logs
 temp-files
@@ -7,5 +10,9 @@ eval_private
 .cache
 models
 listing_data/runtime
+data
+test
+listing_data/eval
+listing_data/reports
 **/__pycache__
 **/.venv

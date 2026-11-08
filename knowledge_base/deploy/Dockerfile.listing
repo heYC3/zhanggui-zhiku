@@ -8,11 +8,17 @@ RUN pip install --no-cache-dir -r requirements-listing.txt
 COPY app/__init__.py app/__init__.py
 COPY app/listing_agent app/listing_agent
 COPY app/evidence app/evidence
-COPY listing_data listing_data
+COPY listing_data/products listing_data/products
+COPY listing_data/platforms listing_data/platforms
+COPY listing_data/model_card.json listing_data/model_card.json
 
 ENV PYTHONPATH=/app
 ENV LISTING_RUNTIME_DIR=/app/listing_data/runtime
+ENV LISTING_HOST=0.0.0.0
+ENV PYTHON_DOTENV_DISABLED=1
 
 EXPOSE 8002
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s CMD python -c "import os,urllib.request; urllib.request.urlopen('http://127.0.0.1:'+os.getenv('PORT','8002')+'/api/listing/health',timeout=4)"
 
 CMD ["python", "-m", "app.listing_agent"]

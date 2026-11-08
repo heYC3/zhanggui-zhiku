@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>登录 · 掌柜智库</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f6f1e8; color: #1c1915; font-family: "Microsoft YaHei", sans-serif; }
+    main { max-width: 440px; margin: 12vh auto; padding: 32px; background: #fffdf8; border: 1px solid #e4dccf; border-radius: 16px; }
+    h1 { font-size: 26px; margin-top: 0; }
+    p { color: #5e584f; line-height: 1.7; }
+    label { display: block; margin: 18px 0 8px; }
+    input, button { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cfc5b6; font: inherit; }
+    button { margin-top: 24px; background: #0f6e56; color: white; cursor: pointer; }
+    input:focus-visible, button:focus-visible { outline: 3px solid #568fbc; outline-offset: 3px; }
+    #message { min-height: 26px; color: #8d2f2f; }
+    @media (max-width: 480px) { main { margin: 24px 16px; padding: 24px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>掌柜智库</h1>
+    <p>登录后使用商品 Listing 工作台。草稿依据自编商品资料生成，确认后才会写入。</p>
+    <form id="login">
+      <label for="user">账号</label>
+      <input id="user" autocomplete="username" required>
+      <label for="password">密码</label>
+      <input id="password" type="password" autocomplete="current-password" required>
+      <button id="submit" type="submit">登录工作台</button>
+      <p id="message" role="status" aria-live="polite"></p>
+    </form>
+  </main>
+  <script>
+    document.getElementById("login").onsubmit = async (event) => {
+      event.preventDefault();
+      const button = document.getElementById("submit");
+      const message = document.getElementById("message");
+      button.disabled = true;
+      message.textContent = "正在登录…";
+      try {
+        const response = await fetch("/api/listing/sessions", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: document.getElementById("user").value, password: document.getElementById("password").value })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || "登录失败");
+        sessionStorage.removeItem("listingToken");
+        sessionStorage.removeItem("listingRole");
+        location.replace("/listing.html");
+      } catch (error) { message.textContent = error.message; }
+      finally { button.disabled = false; }
+    };
+  </script>
+</body>
+</html>

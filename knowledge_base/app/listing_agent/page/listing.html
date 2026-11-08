@@ -96,17 +96,13 @@
 <body>
   <header>
     <h1>掌柜智库 · 商品 Listing 工作台</h1>
-    <p>这里根据自编商品资料写亚马逊要点。系统先找证据，再给你看草稿。你点确认后才会写入。原来的手册导入和问答还在 8000、8001。</p>
+    <p>根据自编商品资料写亚马逊要点。系统先找证据，再给你看草稿。你点确认后才会写入；Shopify 商品保持草稿状态。</p>
   </header>
   <main>
     <section>
-      <label for="userId">账号</label>
-      <input id="userId" value="小明" autocomplete="username" />
-      <label for="password">密码</label>
-      <input id="password" type="password" autocomplete="current-password" />
-      <p id="who" class="meta">先登录。身份由服务端账号决定。</p>
+      <p id="who" class="meta">正在读取登录身份…</p>
       <div class="row">
-        <button type="button" id="loginBtn">登录</button>
+        <button type="button" id="logoutBtn">退出登录</button>
       </div>
       <label for="query">要做什么</label>
       <textarea id="query">掌柜示例耳机 X1 单次充电能听多久，写成亚马逊要点</textarea>
@@ -115,7 +111,7 @@
         <option value="offline" selected>原句模板，不调用模型</option>
         <option value="llm">真实模型，仍要人工确认</option>
       </select>
-      <p class="meta">选真实模型时，先走百炼。百炼走不通就换 OpenAI。两家都不通，就用知识库里的原句。点确认才写入。</p>
+      <p id="modeNote" class="meta">选真实模型时，先走百炼。百炼走不通就换 OpenAI。两家都不通，就用知识库里的原句。点确认才写入。</p>
       <div class="row">
         <button class="primary" id="startBtn">生成草稿</button>
         <button id="sampleAmbiguous" type="button">试试型号没说清</button>
@@ -149,11 +145,18 @@
       <p id="receipt" class="meta"></p>
       <p id="models" class="meta"></p>
     </section>
+    <section style="grid-column: 1 / -1; overflow-x: auto;">
+      <h2>在线任务</h2>
+      <p class="meta">统计当前账号在本服务产生的任务。重复状态只计一次；用量或单价缺失时显示“未知”。</p>
+      <button id="refreshDashboard" type="button">刷新任务看板</button>
+      <p id="dashboardSummary" role="status"></p>
+      <table style="width:100%; text-align:left; border-spacing:12px;"><thead><tr><th>任务</th><th>状态</th><th>输入 token</th><th>输出 token</th><th>费用（USD）</th><th>供应商尝试</th></tr></thead><tbody id="dashboardRows"></tbody></table>
+    </section>
   </main>
   <script>
     const statusLabels = {
       awaiting_confirmation: "草稿好了，等你确认",
-      written: "已经写入台账",
+      written: "已完成写入",
       written_checked: "人工核对过，不再写第二遍",
       rejected: "已拒绝，没有写入",
       cancelled: "已取消",
@@ -169,15 +172,13 @@
     };
     let task = null;
     let sessionId = "";
-    let token = sessionStorage.getItem("listingToken") || "";
-    let actorRole = sessionStorage.getItem("listingRole") || "";
+    let actorRole = "";
     let source = null;
 
     const $ = (id) => document.getElementById(id);
 
     function authHeaders() {
       const headers = { "Content-Type": "application/json" };
-      if (token) headers.Authorization = "Bearer " + token;
       return headers;
     }
 
@@ -188,6 +189,7 @@
         body: JSON.stringify(body || {})
       });
       const data = await response.json();
+      if (response.status === 401) location.replace("/login.html");
       if (!response.ok) throw new Error(data.detail || "请求失败");
       return data;
     }
@@ -195,30 +197,15 @@
     async function listen(taskId) {
       if (source) source.abort();
       source = new AbortController();
-      const response = await fetch(`/api/listing/stream/${taskId}`, {
-        headers: { Authorization: "Bearer " + token },
-        signal: source.signal
-      });
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.detail || "看不到这条任务");
-      }
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      while (true) {
-        const chunk = await reader.read();
-        if (chunk.done) break;
-        buffer += decoder.decode(chunk.value, { stream: true });
-        const parts = buffer.split("\n\n");
-        buffer = parts.pop();
-        for (const part of parts) {
-          if (part.includes("event: end")) return;
-          const latest = await fetch(`/api/listing/tasks/${taskId}`, {
-            headers: { Authorization: "Bearer " + token }
-          }).then((item) => item.json());
-          render(latest);
-        }
+      const signal = source.signal;
+      while (!signal.aborted) {
+        const response = await fetch(`/api/listing/tasks/${encodeURIComponent(taskId)}`, { signal });
+        if (response.status === 401) { location.replace("/login.html"); return; }
+        if (!response.ok) return;
+        const latest = await response.json();
+        render(latest);
+        if (!["running", "awaiting_confirmation"].includes(latest.status)) return;
+        await new Promise((resolve) => setTimeout(resolve, 2000));
       }
     }
 
@@ -230,6 +217,7 @@
 
     function render(snapshot) {
       task = snapshot;
+      $("query").value = snapshot.query || "";
       const remote = snapshot.shop_backend === "shopify";
       const destination = remote ? "Shopify 测试店草稿" : "本地台账";
       history.replaceState(null, "", `${location.pathname}?task=${encodeURIComponent(snapshot.task_id)}`);
@@ -321,28 +309,18 @@
 
     async function restoreTask() {
       const taskId = new URLSearchParams(location.search).get("task");
-      if (!taskId || !token) return;
-      const response = await fetch(`/api/listing/tasks/${encodeURIComponent(taskId)}`, {
-        headers: { Authorization: "Bearer " + token }
-      });
+      if (!taskId) return;
+      const response = await fetch(`/api/listing/tasks/${encodeURIComponent(taskId)}`);
       const snapshot = await response.json();
       if (!response.ok) throw new Error(snapshot.detail || "任务恢复失败");
       render(snapshot);
-      if (["running", "awaiting_confirmation"].includes(snapshot.status)) listen(taskId);
+      if (["running", "awaiting_confirmation"].includes(snapshot.status)) listen(taskId).catch(() => {});
     }
 
-    $("loginBtn").onclick = async () => {
+    $("logoutBtn").onclick = async () => {
       try {
-        const logged = await post("/api/listing/sessions", {
-          user_id: $("userId").value,
-          password: $("password").value
-        });
-        token = logged.token;
-        actorRole = logged.role;
-        sessionStorage.setItem("listingToken", token);
-        sessionStorage.setItem("listingRole", actorRole);
-        $("who").textContent = logged.user_id + " · " + (actorRole === "editor" ? "编辑" : "查看");
-        await restoreTask();
+        await post("/api/listing/logout", {});
+        location.replace("/login.html");
       } catch (error) {
         setStatus(error.message, "bad");
       }
@@ -359,7 +337,7 @@
           draft_mode: $("draftMode").value
         });
         render(snapshot);
-        listen(snapshot.task_id);
+        listen(snapshot.task_id).catch(() => {});
       } catch (error) {
         setStatus(error.message, "bad");
       } finally {
@@ -437,9 +415,43 @@
       }
     };
 
+    async function refreshDashboard() {
+      const response = await fetch("/api/listing/dashboard");
+      if (response.status === 401) { location.replace("/login.html"); return; }
+      if (!response.ok) { $("dashboardSummary").textContent = "看板读取失败，请重试。"; return; }
+      const data = await response.json();
+      const show = (value) => value == null ? "未知" : String(value);
+      $("dashboardSummary").textContent = `${data.task_count} 个任务 · 输入 ${show(data.totals.prompt_tokens)} token · 输出 ${show(data.totals.completion_tokens)} token · 费用 ${show(data.totals.cost)} USD`;
+      $("dashboardRows").replaceChildren();
+      data.tasks.forEach((row) => {
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        const link = document.createElement("a");
+        link.href = `/listing.html?task=${encodeURIComponent(row.task_id)}`;
+        link.textContent = row.task_id.slice(0, 12);
+        td.append(link); tr.append(td);
+        [statusLabels[row.status] || row.status, row.prompt_tokens, row.completion_tokens, row.cost, row.provider_attempts].forEach((value) => {
+          const cell = document.createElement("td"); cell.textContent = show(value); tr.append(cell);
+        });
+        $("dashboardRows").append(tr);
+      });
+    }
+    $("refreshDashboard").onclick = () => refreshDashboard().catch((error) => setStatus(error.message, "bad"));
+    fetch("/api/listing/me").then((response) => {
+      if (response.status === 401) location.replace("/login.html");
+      return response.json();
+    }).then((actor) => {
+      actorRole = actor.role;
+      $("who").textContent = actor.user_id + " · " + (actorRole === "editor" ? "编辑" : "查看");
+    });
     fetch("/api/listing/meta").then((response) => response.json()).then((card) => {
       $("models").textContent = `默认草稿器 ${card.draft_generator}，向量 ${card.embedding}，重排序 ${card.reranker}。`;
+      if (card.offline_only) {
+        $("draftMode").querySelector('option[value="llm"]').remove();
+        $("modeNote").textContent = "公开测试版使用自编商品原句，不调用付费模型。";
+      }
     });
+    refreshDashboard().catch((error) => setStatus(error.message, "bad"));
     restoreTask().catch((error) => setStatus(error.message, "bad"));
   </script>
 </body>

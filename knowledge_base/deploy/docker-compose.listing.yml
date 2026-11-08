@@ -12,9 +12,10 @@ services:
       dockerfile: deploy/Dockerfile.listing
     image: zhanggui-listing-agent:local
     ports:
-      - "8002:8002"
+      - "127.0.0.1:8002:8002"
     environment:
       LISTING_RUNTIME_DIR: /app/listing_data/runtime
+      LISTING_ACCOUNTS: ${LISTING_ACCOUNTS:?请先设置 LISTING_ACCOUNTS}
     volumes:
       - listing_runtime:/app/listing_data/runtime
 

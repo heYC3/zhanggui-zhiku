@@ -1,0 +1,45 @@
+# Ubuntu 云主机单实例；仅 Caddy 的 80/443 对公网开放。
+# docker compose --env-file /opt/zhanggui/secrets.env -f deploy/docker-compose.online.yml up -d --build
+services:
+  listing-agent:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.listing
+    restart: unless-stopped
+    env_file: ${LISTING_ENV_FILE:-/opt/zhanggui/secrets.env}
+    environment:
+      LISTING_DEPLOYMENT: public
+      LISTING_HOST: 0.0.0.0
+      PORT: "8002"
+      LISTING_VOLUME_DIR: /var/data
+      LISTING_RUNTIME_DIR: /var/data/runtime
+      LISTING_CHECKPOINT: sqlite
+      LISTING_SHOP_BACKEND: shopify
+      LISTING_DRAFT_MODE: offline
+      LISTING_USE_BGE: "0"
+      LISTING_TEST_MODE: "0"
+      PYTHON_DOTENV_DISABLED: "1"
+      FORWARDED_ALLOW_IPS: "*"
+    ports:
+      - "127.0.0.1:8002:8002"
+    volumes:
+      - /opt/zhanggui/data:/var/data
+      - /opt/zhanggui/backups:/backups
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      PUBLIC_DOMAIN: ${PUBLIC_DOMAIN:?请设置公网域名}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      listing-agent:
+        condition: service_healthy
+volumes:
+  caddy_data:
+  caddy_config:

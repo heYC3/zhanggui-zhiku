@@ -53,9 +53,24 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
+def _shopify_proxies():
+    transport = os.getenv("LISTING_SHOPIFY_TRANSPORT", "direct").strip().lower()
+    if transport == "direct":
+        return {}
+    if transport != "pythonanywhere":
+        raise ShopError("不支持的 Shopify 出网方式")
+    proxy = urllib.request.getproxies().get("https", "")
+    parsed = urllib.parse.urlsplit(proxy)
+    if (parsed.scheme != "http" or parsed.hostname != "proxy.server" or parsed.port != 3128
+            or parsed.username or parsed.password or parsed.query or parsed.fragment
+            or parsed.path not in {"", "/"}):
+        raise ShopError("PythonAnywhere 出网仅允许官方 proxy.server:3128")
+    return {"https": proxy}
+
+
 def _urlopen_direct(req, *, timeout):
-    # 服务端直连；不继承系统/环境代理，不向重定向目标转发凭据。
-    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect())
+    # 默认直连；仅显式选择 PythonAnywhere 时使用其官方代理。拒绝重定向。
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler(_shopify_proxies()), _NoRedirect())
     return opener.open(req, timeout=timeout)
 
 

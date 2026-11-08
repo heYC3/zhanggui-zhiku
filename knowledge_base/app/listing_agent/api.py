@@ -5,18 +5,40 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.listing_agent.auth import AuthStore, SessionActor, load_accounts_from_env
 from app.listing_agent.paths import MODEL_CARD_PATH, runtime_dir
 from app.listing_agent.service import ListingError, ListingService
+from app.listing_agent.deployment import public_mode, runtime_lease, validate_public_config
 
 
-app = FastAPI(title="掌柜智库 Listing", description="商品资料检索、草稿确认和写入")
+@asynccontextmanager
+async def lifespan(_app):
+    from app.listing_agent.shopify_adapter import load_env_file
+    load_env_file()
+    validate_public_config()
+    with runtime_lease(runtime_dir()):
+        try:
+            get_auth()
+            get_service()
+            yield
+        finally:
+            global _service, _auth
+            if _service is not None:
+                _service.close()
+                _service = None
+            if _auth is not None:
+                _auth.close()
+                _auth = None
+
+
+app = FastAPI(title="掌柜智库 Listing", description="商品资料检索、草稿确认和写入", lifespan=lifespan)
 _service: ListingService | None = None
 _auth: AuthStore | None = None
 
@@ -60,12 +82,30 @@ def test_mode() -> bool:
 
 def actor_from_request(request: Request) -> SessionActor:
     header = request.headers.get("authorization", "")
-    if not header.lower().startswith("bearer "):
-        raise ListingError("未登录", 401)
-    actor = get_auth().resolve(header.split(" ", 1)[1].strip())
+    token = header.split(" ", 1)[1].strip() if header.lower().startswith("bearer ") else request.cookies.get("listing_session", "")
+    actor = get_auth().resolve(token)
     if actor is None:
         raise ListingError("未登录", 401)
     return actor
+
+
+@app.middleware("http")
+async def protect_browser_session(request: Request, call_next):
+    if public_mode() and request.url.path in {"/docs", "/redoc", "/openapi.json"}:
+        return JSONResponse(status_code=404, content={"detail": "未开放"})
+    if request.method not in {"GET", "HEAD", "OPTIONS"}:
+        origin = request.headers.get("origin")
+        expected = os.getenv("LISTING_PUBLIC_ORIGIN") or f"{request.url.scheme}://{request.url.netloc}"
+        bearer = request.headers.get("authorization", "").lower().startswith("bearer ")
+        if (origin and origin != expected) or (request.cookies.get("listing_session") and not bearer and not origin
+                                               and request.url.path != "/api/listing/sessions"):
+            return JSONResponse(status_code=403, content={"detail": "请求来源不允许"})
+    response = await call_next(request)
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["X-Frame-Options"] = "DENY"
+    return response
 
 
 @app.exception_handler(ListingError)
@@ -109,11 +149,25 @@ def _guard_faults(rerank_mode: str, inject_write_unknown: bool) -> None:
 
 
 @app.get("/listing.html")
-async def listing_page():
+async def listing_page(request: Request):
+    try:
+        actor_from_request(request)
+    except ListingError:
+        return RedirectResponse("/login.html", status_code=303)
     page = Path(__file__).resolve().parent / "page" / "listing.html"
     if not page.exists():
         return JSONResponse(status_code=404, content={"detail": "页面文件不见了"})
     return FileResponse(page)
+
+
+@app.get("/")
+async def home():
+    return RedirectResponse("/listing.html", status_code=303)
+
+
+@app.get("/login.html")
+async def login_page():
+    return FileResponse(Path(__file__).resolve().parent / "page" / "login.html")
 
 
 @app.get("/api/listing/health")
@@ -122,28 +176,68 @@ async def health():
 
 
 @app.get("/api/listing/meta")
-async def meta():
+async def meta(request: Request):
+    actor_from_request(request)
     card = json.loads(MODEL_CARD_PATH.read_text(encoding="utf-8"))
+    card["deployment"] = os.getenv("LISTING_DEPLOYMENT", "local")
+    card["offline_only"] = public_mode()
     return card
 
 
 @app.post("/api/listing/sessions")
-async def login(body: LoginBody):
+async def login(body: LoginBody, request: Request):
     token = get_auth().login(body.user_id.strip(), body.password)
     if not token:
         raise ListingError("账号或密码不对", 401)
     actor = get_auth().resolve(token)
-    return {
+    response = JSONResponse({
         "token": token,
         "user_id": actor.user_id,
         "role": actor.role,
         "org_id": actor.org_id,
-    }
+    })
+    response.set_cookie("listing_session", token, max_age=12 * 3600, httponly=True,
+                        secure=public_mode(), samesite="strict")
+    return response
+
+
+@app.get("/api/listing/me")
+async def me(request: Request):
+    actor = actor_from_request(request)
+    return {"user_id": actor.user_id, "role": actor.role}
+
+
+@app.post("/api/listing/logout")
+async def logout(request: Request):
+    actor_from_request(request)
+    header = request.headers.get("authorization", "")
+    tokens = [request.cookies.get("listing_session", "")]
+    if header.lower().startswith("bearer "):
+        tokens.append(header.split(" ", 1)[1].strip())
+    for token in tokens:
+        if token:
+            get_auth().revoke(token)
+    response = JSONResponse({"ok": True})
+    response.delete_cookie("listing_session")
+    return response
+
+
+@app.get("/api/listing/dashboard")
+def dashboard(request: Request):
+    from app.listing_agent.dashboard import summarize
+    actor = actor_from_request(request)
+    service = get_service()
+    rows = service.ledger._conn.execute(
+        "SELECT task_id, status FROM tasks WHERE user_id = ? ORDER BY created_at DESC", (actor.user_id,)
+    ).fetchall()
+    return summarize(service.runtime, [dict(row) for row in rows])
 
 
 @app.post("/api/listing/tasks")
 async def start_task(body: StartBody, request: Request):
     actor = actor_from_request(request)
+    if public_mode() and body.draft_mode not in {None, "offline"}:
+        raise ListingError("公开测试版只允许原句草稿", 403)
     _guard_faults(body.rerank_mode, body.inject_write_unknown)
     return get_service().start(
         query=body.query,

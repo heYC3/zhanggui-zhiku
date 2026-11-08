@@ -68,8 +68,16 @@
 
 截图为该次运行的静态留存，后续提交状态仍应查看[实时 Actions](https://github.com/heYC3/zhanggui-zhiku/actions/workflows/listing-ci.yml)。
 
+## 9. 在线测试版：云端登录、真实 DRAFT 与恢复
+
+![PythonAnywhere 恢复后的 P20 工作台](listing/pythonanywhere_online_2026-11-08.png)
+
+2026-11-08 的真实公网浏览器页面，来自 PythonAnywhere Beginner 的实验 ASGI 服务；仅本人一个编辑账号。自编 P20 商品 `15465550020682` 已创建为 DRAFT 并独立读回，平台重载、停服备份与空目录恢复后仍对应同一回执；重复确认后按完整操作标记查询仍只有 1 件。
+
+云端只部署公开样例和 Listing，不上传私有手册、评测、本机数据库或模型 Key。公开原句模式没有模型调用；在线任务看板只有本次 1 个任务，用量和费用为 0。备份包含鉴权与业务数据，私有保留，不随仓库发布。见[完整部署验收](pythonanywhere.md)及[脱敏回执](listing/pythonanywhere_receipt_2026-11-08.json)。免费账号需按实际到期时间续期，实验 ASGI 不代表生产高可用。
+
 ## 图片维护
 
 SVG 图源与生成器在 [render_diagrams.py](assets/render_diagrams.py)，只使用 Python 标准库。执行 `python docs/assets/render_diagrams.py` 可重建三张图；公开检索分数直接读取逐题 JSON，私有结果只引用已公开汇总。页面图由浏览器实际截图保存，未用注入数据制作成功状态。
 
-CI 以 [GitHub Actions 实时状态](https://github.com/heYC3/zhanggui-zhiku/actions/workflows/listing-ci.yml)为准；本机 61 项 Listing 与 39 项 RAG 通过不代替云端运行结果。
+CI 以 [GitHub Actions 实时状态](https://github.com/heYC3/zhanggui-zhiku/actions/workflows/listing-ci.yml)为准；本地记录的 72 项 Listing 与 39 项 RAG 通过不代替当前提交的云端 CI 结果。

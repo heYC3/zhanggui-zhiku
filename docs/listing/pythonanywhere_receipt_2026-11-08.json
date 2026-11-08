@@ -1,0 +1,71 @@
+{
+  "verified_at": "2026-11-08T07:30:33Z",
+  "environment": "PythonAnywhere Beginner; experimental ASGI; single worker; personal test only",
+  "task_id": "146d8c32062449c7ba522e02ab9d156d",
+  "sku": "zg-power-p20",
+  "receipt": {
+    "status": "written",
+    "listing_id": "15465550020682",
+    "shop_product_id": "15465550020682",
+    "shop_status": "DRAFT",
+    "url": "https://zhanggui-test.myshopify.com/admin/products/15465550020682",
+    "raw": {
+      "product": {
+        "id": "gid://shopify/Product/15465550020682",
+        "status": "DRAFT",
+        "title": "掌柜示例P20 单口输出 65 瓦，可以给笔记本充电。",
+        "vendor": "掌柜示例"
+      },
+      "readback": {
+        "id": "gid://shopify/Product/15465550020682",
+        "status": "DRAFT",
+        "title": "掌柜示例P20 单口输出 65 瓦，可以给笔记本充电。",
+        "vendor": "掌柜示例"
+      },
+      "mutation_confirmed": true,
+      "readback_confirmed": true,
+      "idempotency_key": "146d8c32062449c7ba522e02ab9d156d:1:write"
+    },
+    "message": "已写入 Shopify 测试店草稿，并独立读回确认 DRAFT。",
+    "backend": "shopify",
+    "operation_id": "d0df1367344a4ef9815df239edafe950",
+    "payload_sha256": "86c34dd37433c37878257903b914c37d17728475066a82f5f866c464210f722b",
+    "store_domain": "zhanggui-test.myshopify.com"
+  },
+  "independent_readback": {
+    "product": {
+      "id": "gid://shopify/Product/15465550020682",
+      "title": "掌柜示例P20 单口输出 65 瓦，可以给笔记本充电。",
+      "vendor": "掌柜示例",
+      "status": "DRAFT",
+      "descriptionHtml": "<ul>\n<li>单口输出 65 瓦，可以给笔记本充电。</li>\n<li>电芯容量 20000 毫安时，标注容量以电芯为准。</li>\n</ul>",
+      "tags": [
+        "sku:zg-power-p20",
+        "zhanggui-listing-test",
+        "zhanggui-op-d0df1367344a4ef9815df239edafe950"
+      ]
+    },
+    "products": {
+      "nodes": [
+        {
+          "id": "gid://shopify/Product/15465550020682",
+          "status": "DRAFT"
+        }
+      ],
+      "pageInfo": {
+        "hasNextPage": false
+      }
+    }
+  },
+  "checks": {
+    "repeat_confirmation": true,
+    "platform_reload": true,
+    "empty_runtime_restore": true,
+    "repeat_after_restore": true,
+    "operation_tag_match_count": 1
+  },
+  "limits": [
+    "Only one self-authored sample was created in the fixed Shopify test store.",
+    "No real-store fault injection, multi-store authorization or production HA validation."
+  ]
+}

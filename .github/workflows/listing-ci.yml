@@ -49,6 +49,17 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build the Listing image
         run: docker build -f knowledge_base/deploy/Dockerfile.listing -t zhanggui-listing:ci knowledge_base
+      - name: Verify container HTTP binding and authentication gate
+        run: |
+          docker run -d --name listing-http -p 127.0.0.1:18002:8002 -e LISTING_ACCOUNTS=ci-owner:ci-only-password:editor:org-ci zhanggui-listing:ci
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:18002/api/listing/health; then break; fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:18002/api/listing/health
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18002/listing.html)" = 303
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18002/api/listing/dashboard)" = 401
+          docker stop listing-http
       - name: First boot leaves a waiting task on the volume
         run: docker run --rm --name listing-volume-a -v listing-ci:/data -e LISTING_RUNTIME_DIR=/data -e LISTING_CHECKPOINT=sqlite zhanggui-listing:ci python -m app.listing_agent.volume_check --phase one
       - name: Second boot reads the same volume and writes once
