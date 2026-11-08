@@ -71,7 +71,9 @@ Shopify 核对接口为 `POST /api/listing/tasks/{task_id}/reconcile`，请求�
 
 第二步验收时的离线回归全部通过：Listing **61 项**、RAG **39 项**；本机 `.env` 加载已禁用，店铺后端固定为 local。[原始回执](listing/shopify_receipt_2026-11-08.json)中的 61 保留为当时结果。第三步增加部署与恢复测试后，截至当前发布记录为 Listing **72 项**、RAG **39 项**，当前状态以 [GitHub Actions](https://github.com/heYC3/zhanggui-zhiku/actions/workflows/listing-ci.yml)为准。历史回执不回写成后续测试数量，测试也不代表真实店铺故障注入。
 
-![真实草稿与回执](listing/shopify_draft_2026-11-08.png)
+![真实草稿与回执，已裁去登录和输入区域](listing/shopify_draft_2026-11-08.png)
+
+截图裁去顶部登录和输入区域，保留真实流程、草稿、证据与 DRAFT 回执；原图仅留本机。
 
 本轮原始运行数据库与测试日志保留在已忽略的 `knowledge_base/listing_data/runtime/`。公开回执只含自编商品和操作证据，不含凭据。
 

@@ -32,11 +32,13 @@
 
 ## 4. Shopify：真实 DRAFT 与可恢复回执
 
-![真实 Shopify 草稿与回执](listing/shopify_draft_2026-11-08.png)
+![真实 Shopify 草稿与回执，已裁去登录和输入区域](listing/shopify_draft_2026-11-08.png)
 
 ![服务重启后的回执画面](listing/shopify_receipt_preview_2026-11-08.png)
 
 2026-11-08 的本机工作台页面，目标为 `zhanggui-test.myshopify.com`。自编耳机商品 `15464977825866` 经真实 `productCreate` 创建为 DRAFT，并独立读回；同一任务重复确认两次、服务重启和浏览器刷新后仍恢复同一商品。
+
+第一张图从原始浏览器截图裁去顶部登录和输入区域，保留实际流程、草稿、支持证据与 DRAFT 回执；没有修改商品状态或页面内容。
 
 可核对 [脱敏 JSON 回执](listing/shopify_receipt_2026-11-08.json)与[完整验收说明](shopify.md)。本轮草稿使用原句模板；真实店只测正常创建、重复确认与已成功任务重启。响应丢失、崩溃、并发及核对异常等窗口由离线模拟店覆盖。
 

@@ -41,7 +41,7 @@ knowledge_base/listing_data/runtime/
 Thumbs.db
 
 # 体积大、且可能含密钥的材料目录，不进仓库。
-课程资料/
+private_materials/
 
 # 厂商用户手册，不放进仓库
 knowledge_base/data/samples/*.pdf
